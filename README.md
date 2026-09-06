@@ -1,58 +1,156 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SIKERA (Sistem Informasi Kesehatan Reproduksi Remaja)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel Version](https://img.shields.io/badge/Laravel-13.x-red.svg)](https://laravel.com)
+[![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-blue.svg)](https://php.net)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4.0-38bdf8.svg)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## About Laravel
+**SIKERA** adalah platform edukasi kesehatan reproduksi dan instrumen evaluasi riset intervensi bagi mahasiswa baru di lingkungan universitas (Universitas Bengkulu). Aplikasi ini dirancang untuk meningkatkan literasi kesehatan reproduksi remaja melalui materi ilmiah komprehensif tanpa vulgaritas, sarana pemantauan mandiri (*self-care tracker*), rubrik sosial kasus kampus, gamifikasi harian, serta evaluasi kognitif terukur (*Pre-Test*, *Post-Test*, dan *N-Gain score*) yang terintegrasi ke Google Sheets dan SPSS.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🌟 Fitur Utama Sistem
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. Mahasiswa (Responden Riset)
+* **Formulir Pendaftaran & Biodata Demografi**: Registrasi mahasiswa baru mencakup inisial, usia, jenis kelamin, agama, program studi, fakultas, dan pendidikan terakhir.
+* **Modul Pembelajaran & Evaluasi Per Modul (*Gating System*)**:
+  * **Pre-Test Modul**: Wajib dikerjakan sebelum materi modul dapat dibuka.
+  * **Materi Ilmiah Terpadu**: Teks komprehensif, infografis, dan video YouTube terintegrasi.
+  * **Post-Test Modul**: Dikerjakan setelah seluruh materi modul selesai untuk menghitung peningkatan pemahaman (*N-Gain score*).
+* **Self-Care Tools**:
+  * **Pelacak Siklus Haid (Khusus Perempuan)**: Estimasi haid berikutnya, masa subur, ovulasi, pencatatan volume aliran, dan derajat nyeri haid (skala NRS).
+  * **Kalkulator Indeks Massa Tubuh (IMT)**: Deteksi status gizi mandiri dan rekomendasi kesehatan hormonal.
+  * **Panduan Visual Darah Haid & Higienitas**: Spektrum warna darah menstruasi (fisiologis vs patologis) dan 4 tips higienitas genitalia.
+* **Projek Visual Poster Kaspro (KesproFeed)**: Galeri poster/pamflet digital kualitas HD dengan fitur unduh lokal dan *one-click share* ke WhatsApp.
+* **Sosial & Perlindungan Kampus**:
+  * **Studi Kasus Nyata Kampus**: Bedah kasus indekos (*living together*, *gaslighting*, KBGO, risiko IMS/KTD) beserta analisis hukum UU TPKS No. 12/2022 dan mitigasi medis.
+  * **Forum Tanya Jawab Anonim**: Ruang konsultasi aman dua arah bersama konselor dan dosen PA.
+* **Gamifikasi & Retensi Harian**:
+  * **Trivia Harian & Streak Counter**: Kuis harian berhadiah poin.
+  * **Mitos vs Fakta**: Uji pengetahuan seputar mitos kesehatan reproduksi.
+  * **Secret Diary / Mood Log**: Jurnal catatan harian suasana hati.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 2. Dosen Pembimbing Akademik (Dosen PA & Konselor)
+* **Dashboard Statistik Kelas**: Pantau rata-rata skor Pre-Test, Post-Test, indeks *N-Gain*, serta persentase partisipasi mahasiswa bimbingan per fakultas.
+* **Bahan Bimbingan & Konseling**: Akses langsung katalog modul materi edukasi dan respons pertanyaan konseling anonim mahasiswa.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### 3. Super Admin & Pengelola Riset (Terpisah & Terstruktur)
+* **Dashboard Grafik & Evaluasi**: Grafik batang perbandingan skor Pre vs Post per modul, Radial Gauge N-Gain, dan KPI riset.
+* **Daftar Pengguna**: Manajemen seluruh akun terdaftar dengan filter peran (*Mahasiswa, Dosen PA, Super Admin*) dan pencarian cepat.
+* **Kelola Modul**: Unggah modul edukasi baru, tambah submateri (+ YouTube ID & teks ilmiah), dan hapus materi.
+* **Lembar Data**: *Live Spreadsheet View* data mentah responden, skor evaluasi, N-Gain, ekspor SPSS/Excel, dan log sinkronisasi Google Sheets.
+* **Unggah Poster**: Publikasi dan kelola poster edukatif Kaspro.
 
-## Agentic Development
+---
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 4. REST API Backend untuk Mobile App (Flutter)
+Backend SIKERA dilengkapi dengan **REST API lengkap menggunakan Laravel Sanctum** yang siap dihubungkan dengan aplikasi mobile (Flutter / Dart):
+* Autentikasi token Bearer (`/api/v1/auth/login`, `/register`, `/me`, `/biodata`)
+* Dashboard terpadu mobile (`/api/v1/dashboard`)
+* Modul, submateri, Pre-Test, dan Post-Test per modul (`/api/v1/modules/*`)
+* Self-Care Tools & Period tracker (`/api/v1/selfcare/*`)
+* Poster Kaspro download & share (`/api/v1/posters/*`)
+* Studi Kasus & Forum tanya jawab (`/api/v1/cases`, `/api/v1/forum/*`)
+* Gamifikasi Trivia, Mitos/Fakta, Diary (`/api/v1/gamification/*`)
 
+> 📖 Dokumentasi lengkap endpoint API: **[`API_DOCUMENTATION.md`](API_DOCUMENTATION.md)**
+
+---
+
+## 🛠️ Tech Stack
+
+* **Backend Framework**: Laravel 13 (PHP 8.3+)
+* **API Authentication**: Laravel Sanctum (Bearer Token)
+* **Database**: MySQL / MariaDB
+* **Frontend Web**: Blade Templates, Tailwind CSS v4, Alpine.js, ApexCharts
+* **UI Design Template**: TailAdmin Responsive Dashboard Theme
+* **Asset Bundler**: Vite 6
+
+---
+
+## 🚀 Panduan Instalasi & Menjalankan Aplikasi
+
+### 1. Prasyarat Sistem
+* PHP >= 8.3 (dengan ekstensi `pdo_mysql`, `mbstring`, `openssl`, `bcmath`, `curl`)
+* Composer
+* Node.js & NPM
+* Server Database MySQL
+
+### 2. Kloning & Pengaturan Lingkungan
 ```bash
-composer require laravel/boost --dev
+# Kloning repositori
+git clone https://github.com/username/sikera-web.git
+cd sikera-web
 
-php artisan boost:install
+# Salin konfigurasi environment
+cp .env.example .env
+
+# Pasang dependensi PHP
+composer install
+
+# Generate application key
+php artisan key:generate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 3. Konfigurasi Database
+Buka file `.env` dan sesuaikan koneksi database MySQL:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sikera_web
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-## Contributing
+### 4. Migrasi & Seeding Data Awal
+```bash
+# Jalankan migrasi dan isi data awal (users, modules, questions, posters, case studies)
+php artisan migrate:fresh --seed
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 5. Kompilasi Aset Frontend
+```bash
+# Pasang dependensi Node.js
+npm install
 
-## Code of Conduct
+# Kompilasi aset dengan Vite
+npm run build
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 6. Jalankan Server Lokal
+```bash
+# Jalankan web server Laravel
+php artisan serve --port=8000
+```
+Buka browser di: **http://127.0.0.1:8000**
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🔑 Kredensial Akun Pengujian (Demo)
 
-## License
+| Peran (*Role*) | Alamat Email | Kata Sandi | Halaman Awal |
+| :--- | :--- | :--- | :--- |
+| **Super Admin** | `admin@sikera.id` | `password` | Dashboard Grafik Riset & Manajemen |
+| **Dosen PA** | `dosen@unib.ac.id` | `password` | Dashboard Dosen PA & Evaluasi Kelas |
+| **Mahasiswa Baru** | `mhs@unib.ac.id` | `password` | Menu Utama Mahasiswa |
+| **Mahasiswa Sampel** | `sample1@unib.ac.id` | `password` | Menu Utama Mahasiswa (Data Evaluasi Lengkap) |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## 🧪 Menjalankan Pengujian Otomatis (*Test Suite*)
+
+Proyek ini dilengkapi dengan unit dan feature tests untuk memvalidasi seluruh alur sistem web dan mobile API:
+```bash
+php artisan test
+```
+
+---
+
+## 📄 Lisensi
+
+Platform SIKERA dikembangkan di bawah lisensi [MIT License](LICENSE).
