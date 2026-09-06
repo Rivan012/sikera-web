@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="60%" stop-color="#1e40af" />
+      <stop offset="100%" stop-color="#172554" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#bgGrad4)" />
+  <circle cx="710" cy="70" r="150" fill="#60a5fa" opacity="0.08" />
+  <circle cx="630" cy="230" r="170" fill="#93c5fd" opacity="0.06" />
+  <path d="M-40 250 Q 240 170, 480 250 T 840 200 L 840 360 L -40 360 Z" fill="#172554" opacity="0.4" />
+  <g transform="translate(605, 80)" stroke="#93c5fd" stroke-width="3" fill="none" opacity="0.85">
+    <path d="M20 50 Q50 20 80 50 T140 50" />
+    <circle cx="50" cy="55" r="16" fill="#60a5fa" fill-opacity="0.3" />
+    <circle cx="90" cy="50" r="20" fill="#3b82f6" fill-opacity="0.4" />
+    <circle cx="120" cy="60" r="12" fill="#93c5fd" fill-opacity="0.3" />
+  </g>
+  <g transform="translate(48, 80)">
+    <rect x="0" y="0" width="110" height="28" rx="14" fill="#60a5fa" fill-opacity="0.2" />
+    <text x="55" y="18" font-family="'Outfit', sans-serif" font-size="12" font-weight="700" fill="#bfdbfe" text-anchor="middle" letter-spacing="1">MODUL 04</text>
+    <text x="0" y="65" font-family="'Outfit', sans-serif" font-size="28" font-weight="800" fill="#ffffff">Pernikahan Dini &amp;</text>
+    <text x="0" y="98" font-family="'Outfit', sans-serif" font-size="28" font-weight="800" fill="#93c5fd">Kesiapan Keluarga</text>
+    <text x="0" y="132" font-family="'Outfit', sans-serif" font-size="14" font-weight="400" fill="#dbeafe" opacity="0.9">4 pilar kesiapan BKKBN, mitigasi risiko medis kehamilan &amp; gizi stunting</text>
+  </g>
+</svg>

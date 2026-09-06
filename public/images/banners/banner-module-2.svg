@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b45309" />
+      <stop offset="60%" stop-color="#92400e" />
+      <stop offset="100%" stop-color="#451a03" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#bgGrad2)" />
+  <circle cx="700" cy="80" r="150" fill="#fde68a" opacity="0.08" />
+  <circle cx="640" cy="220" r="160" fill="#fbbf24" opacity="0.06" />
+  <path d="M-40 250 Q 220 170, 460 250 T 840 190 L 840 360 L -40 360 Z" fill="#451a03" opacity="0.4" />
+  <g transform="translate(610, 80)" stroke="#fbbf24" stroke-width="3" fill="none" opacity="0.85">
+    <path d="M30 40 A20 20 0 0 1 70 40 A20 20 0 0 1 110 40 Q110 75 70 105 Q30 75 30 40 Z" fill="#fbbf24" fill-opacity="0.25" />
+    <circle cx="70" cy="45" r="12" fill="#fde68a" opacity="0.5" />
+  </g>
+  <g transform="translate(48, 80)">
+    <rect x="0" y="0" width="110" height="28" rx="14" fill="#fbbf24" fill-opacity="0.2" />
+    <text x="55" y="18" font-family="'Outfit', sans-serif" font-size="12" font-weight="700" fill="#fde68a" text-anchor="middle" letter-spacing="1">MODUL 02</text>
+    <text x="0" y="65" font-family="'Outfit', sans-serif" font-size="28" font-weight="800" fill="#ffffff">Batasan Pergaulan &amp;</text>
+    <text x="0" y="98" font-family="'Outfit', sans-serif" font-size="28" font-weight="800" fill="#fbbf24">Relasi Kampus Sehat</text>
+    <text x="0" y="132" font-family="'Outfit', sans-serif" font-size="14" font-weight="400" fill="#fef3c7" opacity="0.9">Komunikasi asertif, pencegahan manipulasi relasi &amp; dinamika kos-kosan</text>
+  </g>
+</svg>
