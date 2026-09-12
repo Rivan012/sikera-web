@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\EducationalModule;
-use App\Models\ModuleTopic;
-use App\Models\ModuleProgress;
-use App\Models\TestQuestion;
 use App\Models\EvaluationResponse;
+use App\Models\ModuleProgress;
+use App\Models\ModuleTopic;
+use App\Models\TestQuestion;
 use App\Services\GoogleSheetsSyncService;
+use App\Services\ModuleExcelImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -55,10 +56,10 @@ class ModuleController extends Controller
                 'total_topics' => $mod->topics_count,
                 'completed_topics' => $completedCount,
                 'progress_percentage' => $mod->topics_count > 0 ? round(($completedCount / $mod->topics_count) * 100) : 0,
-                'is_locked' => !$hasPretest,
+                'is_locked' => ! $hasPretest,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool)$posttest,
+                'has_posttest' => (bool) $posttest,
                 'posttest_score' => $posttest ? $posttest->total_score : null,
                 'n_gain' => $posttest ? $posttest->n_gain_score : null,
             ];
@@ -79,7 +80,7 @@ class ModuleController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $module = EducationalModule::with(['topics' => fn($q) => $q->orderBy('order_index')])->findOrFail($id);
+        $module = EducationalModule::with(['topics' => fn ($q) => $q->orderBy('order_index')])->findOrFail($id);
 
         $hasPretest = EvaluationResponse::where('user_id', $user->id)
             ->where('type', 'pre_test')
@@ -100,9 +101,9 @@ class ModuleController extends Controller
                 'id' => $tp->id,
                 'topic_code' => $tp->topic_code,
                 'title' => $tp->title,
-                'has_video' => (bool)$tp->youtube_video_id,
+                'has_video' => (bool) $tp->youtube_video_id,
                 'is_completed' => in_array($tp->id, $completedTopicIds),
-                'is_locked' => !$hasPretest,
+                'is_locked' => ! $hasPretest,
             ];
         });
 
@@ -127,10 +128,10 @@ class ModuleController extends Controller
                     'banner_image' => url($module->banner_image ?: "/images/banners/banner-module-{$module->module_number}.svg"),
                     'estimated_time' => $module->estimated_time,
                 ],
-                'is_locked' => !$hasPretest,
+                'is_locked' => ! $hasPretest,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool)$posttest,
+                'has_posttest' => (bool) $posttest,
                 'posttest_score' => $posttest ? $posttest->total_score : null,
                 'n_gain' => $posttest ? $posttest->n_gain_score : null,
                 'topics' => $topics,
@@ -166,7 +167,7 @@ class ModuleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Soal Pre-Test Modul ' . $module->module_number . ' berhasil dimuat.',
+            'message' => 'Soal Pre-Test Modul '.$module->module_number.' berhasil dimuat.',
             'data' => [
                 'module_id' => $module->id,
                 'module_number' => $module->module_number,
@@ -219,7 +220,7 @@ class ModuleController extends Controller
             'type' => 'pre_test',
             'module_number' => $module->module_number,
             'raw_answers' => $answers,
-            'scores_per_module' => ['Modul ' . $module->module_number => $totalScore],
+            'scores_per_module' => ['Modul '.$module->module_number => $totalScore],
             'total_score' => $totalScore,
             'submitted_at' => now(),
         ]);
@@ -231,7 +232,7 @@ class ModuleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pre-Test Modul ' . $module->module_number . ' selesai! Akses materi telah dibuka.',
+            'message' => 'Pre-Test Modul '.$module->module_number.' selesai! Akses materi telah dibuka.',
             'data' => [
                 'module_id' => $module->id,
                 'module_number' => $module->module_number,
@@ -261,10 +262,10 @@ class ModuleController extends Controller
             })
             ->exists();
 
-        if (!$hasPretest) {
+        if (! $hasPretest) {
             return response()->json([
                 'success' => false,
-                'message' => 'Materi terkunci! Silakan selesaikan Pre-Test Modul ' . $module->module_number . ' terlebih dahulu.',
+                'message' => 'Materi terkunci! Silakan selesaikan Pre-Test Modul '.$module->module_number.' terlebih dahulu.',
                 'requires_pretest' => true,
                 'module_id' => $module->id,
             ], 403);
@@ -277,7 +278,7 @@ class ModuleController extends Controller
         );
 
         $pointsAwarded = 0;
-        if (!$progress->is_completed) {
+        if (! $progress->is_completed) {
             $progress->update(['is_completed' => true, 'completed_at' => now()]);
             $user->increment('points', 10);
             $pointsAwarded = 10;
@@ -285,7 +286,7 @@ class ModuleController extends Controller
 
         // Prev & Next navigation
         $allTopics = ModuleTopic::where('educational_module_id', $moduleId)->orderBy('order_index')->get();
-        $currentIndex = $allTopics->search(fn($t) => $t->id === $topic->id);
+        $currentIndex = $allTopics->search(fn ($t) => $t->id === $topic->id);
         $prevTopic = $currentIndex > 0 ? $allTopics[$currentIndex - 1] : null;
         $nextTopic = $currentIndex < $allTopics->count() - 1 ? $allTopics[$currentIndex + 1] : null;
 
@@ -361,7 +362,7 @@ class ModuleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Soal Post-Test Modul ' . $module->module_number . ' berhasil dimuat.',
+            'message' => 'Soal Post-Test Modul '.$module->module_number.' berhasil dimuat.',
             'data' => [
                 'module_id' => $module->id,
                 'module_number' => $module->module_number,
@@ -431,7 +432,7 @@ class ModuleController extends Controller
             'type' => 'post_test',
             'module_number' => $module->module_number,
             'raw_answers' => $answers,
-            'scores_per_module' => ['Modul ' . $module->module_number => $postScore],
+            'scores_per_module' => ['Modul '.$module->module_number => $postScore],
             'total_score' => $postScore,
             'n_gain_score' => $nGain,
             'submitted_at' => now(),
@@ -444,7 +445,7 @@ class ModuleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Post-Test Modul ' . $module->module_number . ' selesai! Peningkatan skor berhasil dihitung.',
+            'message' => 'Post-Test Modul '.$module->module_number.' selesai! Peningkatan skor berhasil dihitung.',
             'data' => [
                 'module_id' => $module->id,
                 'module_number' => $module->module_number,
@@ -455,5 +456,92 @@ class ModuleController extends Controller
                 'points_earned' => 50,
             ],
         ]);
+    }
+
+    /**
+     * Hapus Modul Edukasi (Khusus Admin)
+     */
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya admin yang memiliki hak akses untuk menghapus modul edukasi.',
+            ], 403);
+        }
+
+        $module = EducationalModule::find($id);
+
+        if (! $module) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Modul edukasi tidak ditemukan.',
+            ], 404);
+        }
+
+        $moduleNumber = $module->module_number;
+        $title = $module->title;
+
+        // Bersihkan soal kuesioner terkait modul ini
+        TestQuestion::where('module_target', $moduleNumber)->delete();
+
+        // Hapus modul (module_topics dan module_progress otomatis terhapus via foreign key cascade)
+        $module->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Modul #{$moduleNumber} (\"{$title}\") beserta seluruh submateri berhasil dihapus.",
+        ]);
+    }
+
+    /**
+     * Unggah & Import Modul Edukasi via Excel (Khusus Admin)
+     */
+    public function importExcel(Request $request, ModuleExcelImportService $importService)
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya admin yang memiliki hak akses untuk mengimpor modul edukasi.',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'excel_file' => ['required', 'file', 'mimes:xlsx,xls', 'max:15360'],
+            'overwrite' => ['nullable'],
+        ], [
+            'excel_file.required' => 'Pilih file Excel (.xlsx) terlebih dahulu.',
+            'excel_file.file' => 'Berkas yang diunggah tidak valid.',
+            'excel_file.mimes' => 'File harus berformat Excel (.xlsx atau .xls).',
+            'excel_file.max' => 'Ukuran file Excel maksimal 15 MB.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi file gagal.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $overwrite = $request->has('overwrite') ? filter_var($request->input('overwrite'), FILTER_VALIDATE_BOOLEAN) : true;
+            $result = $importService->import($request->file('excel_file')->getRealPath(), $overwrite);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File Excel modul edukasi berhasil diimpor.',
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengimpor file Excel: '.$e->getMessage(),
+            ], 400);
+        }
     }
 }

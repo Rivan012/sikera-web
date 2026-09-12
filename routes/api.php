@@ -1,13 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\ModuleController;
-use App\Http\Controllers\Api\SelfCareController;
-use App\Http\Controllers\Api\PosterController;
 use App\Http\Controllers\Api\CaseAndForumController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GamificationController;
+use App\Http\Controllers\Api\ModuleController;
+use App\Http\Controllers\Api\PosterController;
+use App\Http\Controllers\Api\SelfCareController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,9 +32,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
     });
 
-    // 3. Panduan Publik (Tanpa Auth jika diperlukan)
+    // 3. Panduan Publik & Kalkulator Simulasi (Tanpa Auth jika diperlukan)
     Route::get('/selfcare/guides/blood', [SelfCareController::class, 'bloodGuide']);
     Route::get('/selfcare/guides/hygiene', [SelfCareController::class, 'hygieneGuide']);
+    Route::post('/selfcare/period/calculate', [SelfCareController::class, 'calculatePeriod']);
+    Route::post('/selfcare/period/walidd/calculate', [SelfCareController::class, 'calculateWalidd']);
+    Route::post('/selfcare/period/pbac/calculate', [SelfCareController::class, 'calculatePbac']);
 
     // 4. Endpoint Terproteksi (Bearer Token Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
@@ -58,13 +61,16 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/topic/{topicId}', [ModuleController::class, 'readTopic']);
             Route::get('/{id}/posttest', [ModuleController::class, 'getPosttestQuestions']);
             Route::post('/{id}/posttest', [ModuleController::class, 'submitPosttest']);
+            Route::delete('/{id}', [ModuleController::class, 'destroy']);
+            Route::post('/import', [ModuleController::class, 'importExcel']);
         });
 
-        // 4.4 Self-Care Tools (Period Tracker, IMT)
+        // 4.4 Self-Care Tools (Period Tracker, IMT, Prediksi Menstruasi)
         Route::prefix('selfcare')->group(function () {
             Route::get('/summary', [SelfCareController::class, 'summary']);
             Route::post('/period', [SelfCareController::class, 'storePeriod']);
             Route::get('/period/history', [SelfCareController::class, 'periodHistory']);
+            Route::get('/period/prediction', [SelfCareController::class, 'periodPrediction']);
             Route::post('/bmi', [SelfCareController::class, 'storeBmi']);
             Route::get('/bmi/history', [SelfCareController::class, 'bmiHistory']);
         });

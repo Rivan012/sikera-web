@@ -18,6 +18,7 @@ class User extends Authenticatable
         'nim',
         'role',
         'usia',
+        'menarche_age',
         'fakultas',
         'prodi',
         'gender',

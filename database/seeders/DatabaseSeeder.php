@@ -2,15 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use App\Models\EducationalModule;
-use App\Models\ModuleTopic;
-use App\Models\TestQuestion;
 use App\Models\CaseStudy;
-use App\Models\KesproFeed;
+use App\Models\EducationalModule;
 use App\Models\EmergencyHotline;
-use App\Models\TriviaQuestion;
+use App\Models\EvaluationResponse;
+use App\Models\KesproFeed;
+use App\Models\ModuleTopic;
 use App\Models\MythFactCard;
+use App\Models\TestQuestion;
+use App\Models\TriviaQuestion;
+use App\Models\User;
+use App\Services\GoogleSheetsSyncService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -56,7 +58,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $mhs1 = User::create([
-            'name' => 'Aisyah Putri Maharani',
+            'name' => 'Tester 1',
             'initials' => 'APM',
             'email' => 'mhs@unib.ac.id',
             'nim' => 'A1D026045',
@@ -88,10 +90,10 @@ class DatabaseSeeder extends Seeder
 
         foreach ($fakultasSampel as $index => $data) {
             $userMhs = User::create([
-                'name' => "Responden Sample #".($index+1),
-                'initials' => "RS#".($index+1),
-                'email' => "sample".($index+1)."@unib.ac.id",
-                'nim' => "G1A0260".str_pad($index+1, 2, '0', STR_PAD_LEFT),
+                'name' => 'Responden Sample #'.($index + 1),
+                'initials' => 'RS#'.($index + 1),
+                'email' => 'sample'.($index + 1).'@unib.ac.id',
+                'nim' => 'G1A0260'.str_pad($index + 1, 2, '0', STR_PAD_LEFT),
                 'role' => 'mahasiswa',
                 'usia' => $data['usia'],
                 'agama' => $data['agama'],
@@ -112,7 +114,7 @@ class DatabaseSeeder extends Seeder
             $post = $data['post'];
             $nGain = ($post - $pre) / (100 - $pre);
 
-            $preEval = \App\Models\EvaluationResponse::create([
+            $preEval = EvaluationResponse::create([
                 'user_id' => $userMhs->id,
                 'type' => 'pre_test',
                 'raw_answers' => ['q1' => 'A', 'q2' => 'B', 'q3' => 'A', 'q4' => 'C'],
@@ -121,7 +123,7 @@ class DatabaseSeeder extends Seeder
                 'submitted_at' => now()->subDays(5),
             ]);
 
-            $postEval = \App\Models\EvaluationResponse::create([
+            $postEval = EvaluationResponse::create([
                 'user_id' => $userMhs->id,
                 'type' => 'post_test',
                 'raw_answers' => ['q1' => 'B', 'q2' => 'B', 'q3' => 'C', 'q4' => 'D'],
@@ -132,8 +134,8 @@ class DatabaseSeeder extends Seeder
             ]);
 
             // Log Google Sheets Sync
-            \App\Services\GoogleSheetsSyncService::syncPretestSubmission($userMhs, $preEval);
-            \App\Services\GoogleSheetsSyncService::syncPosttestSubmission($userMhs, $postEval, round($nGain, 3));
+            GoogleSheetsSyncService::syncPretestSubmission($userMhs, $preEval);
+            GoogleSheetsSyncService::syncPosttestSubmission($userMhs, $postEval, round($nGain, 3));
         }
 
         // 2. Modul Pembelajaran (4 Modul SIKERA dengan Banner Visual)

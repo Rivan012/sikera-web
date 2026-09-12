@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\EducationalModule;
-use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
-use App\Models\GoogleSheetSyncLog;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -104,13 +102,13 @@ class AlurSistemSikeraTest extends TestCase
         // 2. Akses halaman Pre-Test Modul 1
         $pretestPage = $this->get("/modules/{$module1->id}/pretest");
         $pretestPage->assertStatus(200);
-        $pretestPage->assertSee("Pre-Test Modul 1");
+        $pretestPage->assertSee('Pre-Test Modul 1');
 
         // 3. Submit Pre-Test Modul 1
         $questions = TestQuestion::where('module_target', 1)->get();
         $payload = ['_token' => csrf_token()];
         foreach ($questions as $q) {
-            $payload['q_' . $q->id] = $q->correct_answer;
+            $payload['q_'.$q->id] = $q->correct_answer;
         }
 
         $submitResp = $this->post("/modules/{$module1->id}/pretest", $payload);
@@ -132,13 +130,13 @@ class AlurSistemSikeraTest extends TestCase
         // 1. Buka halaman Post-Test Modul 1
         $posttestPage = $this->get("/modules/{$module1->id}/posttest");
         $posttestPage->assertStatus(200);
-        $posttestPage->assertSee("Post-Test Modul 1");
+        $posttestPage->assertSee('Post-Test Modul 1');
 
         // 2. Submit Post-Test Modul 1
         $questions = TestQuestion::where('module_target', 1)->get();
         $payload = ['_token' => csrf_token()];
         foreach ($questions as $q) {
-            $payload['q_' . $q->id] = $q->correct_answer;
+            $payload['q_'.$q->id] = $q->correct_answer;
         }
 
         $submitResp = $this->post("/modules/{$module1->id}/posttest", $payload);
@@ -214,10 +212,13 @@ class AlurSistemSikeraTest extends TestCase
         $admin = User::where('role', 'admin')->first();
         $this->actingAs($admin);
 
+        $mhs = User::where('email', 'mhs@unib.ac.id')->first();
         $allResponse = $this->get('/admin/users?role=all');
         $allResponse->assertStatus(200);
         $allResponse->assertSee('Daftar Pengguna');
-        $allResponse->assertSee('Aisyah Putri Maharani');
+        if ($mhs) {
+            $allResponse->assertSee($mhs->name);
+        }
         $allResponse->assertSee('Dr. Rina Novita');
     }
 

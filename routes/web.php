@@ -1,21 +1,21 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\MahasiswaDashboardController;
-use App\Http\Controllers\DosenDashboardController;
 use App\Http\Controllers\AdminDashboardController;
-use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminModuleController;
-use App\Http\Controllers\AdminSheetController;
 use App\Http\Controllers\AdminPosterController;
-use App\Http\Controllers\EvaluationController;
-use App\Http\Controllers\SelfCareController;
+use App\Http\Controllers\AdminSheetController;
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CaseStudyController;
+use App\Http\Controllers\DosenDashboardController;
 use App\Http\Controllers\EducationalModuleController;
+use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\GamificationController;
+use App\Http\Controllers\MahasiswaDashboardController;
 use App\Http\Controllers\PosterController;
-use App\Http\Controllers\CaseStudyController;
+use App\Http\Controllers\SelfCareController;
+use Illuminate\Support\Facades\Route;
 
 // 1. Akses Awal
 Route::get('/', function () {
@@ -34,12 +34,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         $user = auth()->user();
         if ($user->isMahasiswa()) {
-            if (!$user->is_biodata_filled) {
+            if (! $user->is_biodata_filled) {
                 return redirect()->route('biodata.show');
             }
-            if (!$user->pretest_completed) {
+            if (! $user->pretest_completed) {
                 return redirect()->route('pretest.show');
             }
+
             return redirect()->route('mahasiswa.dashboard');
         } elseif ($user->isDosen()) {
             return redirect()->route('dosen.dashboard');
@@ -107,10 +108,15 @@ Route::middleware('auth')->group(function () {
     // 3.1 Dashboard Grafik & Metrik Utama
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
-    // 3.2 Daftar Pengguna Terdaftar
+    // 3.2 Daftar Pengguna Terdaftar (CRUD)
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+    Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::put('/admin/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+    Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 
     // 3.3 Kelola & Unggah Modul Edukasi
+    Route::get('/admin/modules/template', [AdminModuleController::class, 'downloadTemplate'])->name('admin.modules.template');
+    Route::post('/admin/modules/import', [AdminModuleController::class, 'importExcel'])->name('admin.modules.import');
     Route::get('/admin/modules', [AdminModuleController::class, 'index'])->name('admin.modules.index');
     Route::post('/admin/modules', [AdminModuleController::class, 'store'])->name('admin.modules.store');
     Route::post('/admin/modules/{id}/topics', [AdminModuleController::class, 'storeTopic'])->name('admin.modules.topics.store');

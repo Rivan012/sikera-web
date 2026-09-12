@@ -2,36 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PeriodLog;
 use App\Models\BmiLog;
+use App\Models\PeriodLog;
+use App\Services\MenstrualCycleCalculatorService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class SelfCareController extends Controller
 {
-    public function index()
+    public function index(MenstrualCycleCalculatorService $calculator)
     {
         $user = Auth::user();
         $isFemale = ($user->gender === 'P');
 
-        $recentPeriods = $isFemale ? PeriodLog::where('user_id', $user->id)->latest()->take(5)->get() : collect();
+        $recentPeriods = $isFemale ? PeriodLog::where('user_id', $user->id)->latest('start_date')->take(6)->get() : collect();
         $latestPeriod = $recentPeriods->first();
         $recentBmi = BmiLog::where('user_id', $user->id)->latest()->take(5)->get();
         $latestBmi = $recentBmi->first();
 
-        // Prediksi siklus haid dan masa subur (hanya untuk perempuan)
+        // Prediksi siklus haid dan masa subur ilmiah (ACOG, WHO, Wilcox 1995, Ogino-Knaus)
+        $prediction = null;
         $nextPeriodDate = null;
         $fertileWindowStart = null;
         $fertileWindowEnd = null;
         $ovulationDate = null;
 
         if ($isFemale && $latestPeriod) {
-            $cycleLen = $latestPeriod->cycle_length ?? 28;
-            $start = \Carbon\Carbon::parse($latestPeriod->start_date);
-            $nextPeriodDate = $start->copy()->addDays($cycleLen);
-            $ovulationDate = $nextPeriodDate->copy()->subDays(14);
-            $fertileWindowStart = $ovulationDate->copy()->subDays(4);
-            $fertileWindowEnd = $ovulationDate->copy()->addDays(1);
+            $prediction = $calculator->calculateForUser($user);
+            if ($prediction) {
+                $nextPeriodDate = Carbon::parse($prediction['predictions']['next_period']['start_date']);
+                $ovulationDate = Carbon::parse($prediction['predictions']['ovulation']['date']);
+                $fertileWindowStart = Carbon::parse($prediction['predictions']['fertile_window']['start_date']);
+                $fertileWindowEnd = Carbon::parse($prediction['predictions']['fertile_window']['end_date']);
+            }
         }
 
         return view('selfcare.index', compact(
@@ -41,6 +45,7 @@ class SelfCareController extends Controller
             'latestPeriod',
             'recentBmi',
             'latestBmi',
+            'prediction',
             'nextPeriodDate',
             'fertileWindowStart',
             'fertileWindowEnd',
@@ -48,7 +53,7 @@ class SelfCareController extends Controller
         ));
     }
 
-    public function storePeriod(Request $request)
+    public function storePeriod(Request $request, MenstrualCycleCalculatorService $calculator)
     {
         $user = Auth::user();
 
@@ -59,24 +64,116 @@ class SelfCareController extends Controller
         }
 
         $validated = $request->validate([
+            'menarche_age' => 'nullable|integer|min:8|max:25',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'cycle_length' => 'required|integer|min:15|max:60',
-            'period_duration' => 'required|integer|min:1|max:14',
+            'period_duration' => 'nullable|integer|min:1|max:14',
+            'is_regular' => 'nullable|boolean',
             'flow_level' => 'required|in:ringan,sedang,deras,sangat_deras',
             'flow_color' => 'required|string',
+            'blood_consistency' => 'nullable|string|max:50',
+            'volume_category' => 'nullable|string|in:hipomenore,normal,menoragia',
+            'pbac_pads_light' => 'nullable|integer|min:0|max:100',
+            'pbac_pads_medium' => 'nullable|integer|min:0|max:100',
+            'pbac_pads_heavy' => 'nullable|integer|min:0|max:100',
+            'pbac_clots_small' => 'nullable|integer|min:0|max:100',
+            'pbac_clots_large' => 'nullable|integer|min:0|max:100',
             'nrs_pain_score' => 'required|integer|min:0|max:10',
+            'has_dysmenorrhea' => 'nullable|boolean',
+            'walidd_working_ability' => 'nullable|integer|min:0|max:3',
+            'walidd_locations' => 'nullable|array',
+            'walidd_locations.*' => 'in:perut_bawah,pinggang,paha_dalam',
+            'walidd_pain_days' => 'nullable|integer|min:0|max:30',
             'symptoms' => 'nullable|array',
             'notes' => 'nullable|string|max:500',
         ]);
 
+        $validated['is_regular'] = $request->has('is_regular') ? (bool) $request->input('is_regular') : true;
+
+        // Evaluasi Volume Darah PBAC & Klasifikasi FIGO
+        if ($request->filled('pbac_pads_light') || $request->filled('pbac_pads_medium') || $request->filled('pbac_pads_heavy') || $request->filled('pbac_clots_small') || $request->filled('pbac_clots_large')) {
+            $pbac = $calculator->calculatePBAC(
+                padsLight: (int) $request->input('pbac_pads_light', 0),
+                padsMedium: (int) $request->input('pbac_pads_medium', 0),
+                padsHeavy: (int) $request->input('pbac_pads_heavy', 0),
+                clotsSmall: (int) $request->input('pbac_clots_small', 0),
+                clotsLarge: (int) $request->input('pbac_clots_large', 0)
+            );
+            $validated['pbac_score'] = $pbac['total_score'];
+            $validated['volume_category'] = $pbac['code'];
+            $validated['pbac_details'] = $pbac;
+        } else {
+            $validated['pbac_score'] = null;
+            $validated['pbac_details'] = null;
+            if (empty($validated['volume_category'])) {
+                $validated['volume_category'] = match ($validated['flow_level']) {
+                    'ringan' => 'hipomenore',
+                    'sangat_deras' => 'menoragia',
+                    default => 'normal',
+                };
+            }
+        }
+
+        // Hitung durasi otomatis jika end_date tersedia
+        if (! empty($validated['start_date']) && ! empty($validated['end_date'])) {
+            $start = Carbon::parse($validated['start_date']);
+            $end = Carbon::parse($validated['end_date']);
+            $validated['period_duration'] = max(1, min(14, $start->diffInDays($end) + 1));
+        } elseif (empty($validated['period_duration'])) {
+            $validated['period_duration'] = 5;
+        }
+
+        // Evaluasi Dismenore dengan Instrumen WaLIDD Score
+        $hasDysmenorrhea = ! empty($validated['has_dysmenorrhea']) || ($validated['nrs_pain_score'] > 0);
+        $validated['has_dysmenorrhea'] = $hasDysmenorrhea;
+
+        if ($hasDysmenorrhea) {
+            $walidd = $calculator->calculateWaLIDD(
+                workingAbility: $request->input('walidd_working_ability', 0),
+                locations: $request->input('walidd_locations', []),
+                nrsScore: (int) $validated['nrs_pain_score'],
+                painDays: (int) $request->input('walidd_pain_days', 0)
+            );
+
+            $validated['walidd_working_ability'] = $walidd['working_ability_score'];
+            $validated['walidd_locations'] = $walidd['selected_locations'];
+            $validated['walidd_location_score'] = $walidd['location_score'];
+            $validated['walidd_intensity_score'] = $walidd['intensity_score'];
+            $validated['walidd_pain_days'] = $walidd['pain_days'];
+            $validated['walidd_pain_days_score'] = $walidd['pain_days_score'];
+            $validated['walidd_total_score'] = $walidd['total_score'];
+            $validated['walidd_category'] = $walidd['category'];
+            $validated['walidd_interpretation'] = $walidd['interpretation'];
+        } else {
+            $validated['walidd_working_ability'] = 0;
+            $validated['walidd_locations'] = [];
+            $validated['walidd_location_score'] = 0;
+            $validated['walidd_intensity_score'] = 0;
+            $validated['walidd_pain_days'] = 0;
+            $validated['walidd_pain_days_score'] = 0;
+            $validated['walidd_total_score'] = 0;
+            $validated['walidd_category'] = 'Tidak Dismenore';
+            $validated['walidd_interpretation'] = 'Kondisi fisiologis bebas nyeri kram menstruasi.';
+        }
+
         $validated['user_id'] = $user->id;
-        PeriodLog::create($validated);
+        $periodLog = PeriodLog::create($validated);
+
+        // Update profil menarche jika diisi
+        if (! empty($validated['menarche_age']) && $user->menarche_age !== (int) $validated['menarche_age']) {
+            $user->update(['menarche_age' => (int) $validated['menarche_age']]);
+        }
 
         // Tambahkan poin aktivitas
         $user->increment('points', 10);
 
-        return redirect()->route('selfcare.index')->with('success', 'Catatan siklus haid berhasil disimpan.');
+        $successMsg = 'Catatan siklus haid berhasil disimpan (+10 poin).';
+        if ($periodLog->walidd_total_score > 0) {
+            $successMsg .= " Evaluasi Nyeri Dismenore: {$periodLog->walidd_category} (Skor WaLIDD: {$periodLog->walidd_total_score}/12).";
+        }
+
+        return redirect()->route('selfcare.index')->with('success', $successMsg);
     }
 
     public function storeBmi(Request $request)
@@ -86,8 +183,8 @@ class SelfCareController extends Controller
             'height_cm' => 'required|numeric|min:80|max:250',
         ]);
 
-        $weight = (float)$validated['weight_kg'];
-        $heightM = (float)$validated['height_cm'] / 100;
+        $weight = (float) $validated['weight_kg'];
+        $heightM = (float) $validated['height_cm'] / 100;
         $bmi = round($weight / ($heightM * $heightM), 1);
 
         // Kategori WHO & Kemenkes RI untuk Asia
