@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ForumThread;
 use App\Models\ForumReply;
+use App\Models\ForumThread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -12,6 +12,7 @@ class ForumController extends Controller
     public function index()
     {
         $threads = ForumThread::withCount('replies')->latest()->paginate(15);
+
         return view('forum.index', compact('threads'));
     }
 
@@ -30,7 +31,7 @@ class ForumController extends Controller
 
         ForumThread::create([
             'user_id' => Auth::id(),
-            'anonymous_alias' => 'Mahasiswa #' . rand(100, 999),
+            'anonymous_alias' => 'Mahasiswa #'.rand(100, 999),
             'title' => $validated['title'],
             'topic' => $validated['topic'],
             'content' => $validated['content'],
@@ -41,7 +42,8 @@ class ForumController extends Controller
 
     public function show($id)
     {
-        $thread = ForumThread::with(['replies' => fn($q) => $q->oldest()])->findOrFail($id);
+        $thread = ForumThread::with(['replies' => fn ($q) => $q->oldest()])->findOrFail($id);
+
         return view('forum.show', compact('thread'));
     }
 
@@ -55,7 +57,7 @@ class ForumController extends Controller
         $thread = ForumThread::findOrFail($id);
 
         $displayName = $user->isMahasiswa()
-            ? 'Mahasiswa #' . rand(100, 999)
+            ? 'Mahasiswa #'.rand(100, 999)
             : ($user->isDosen() ? 'Dosen PA Konselor' : 'Admin SIKERA');
 
         $roleBadge = $user->role === 'dosen_pa' ? 'dosen_pa' : ($user->role === 'admin' ? 'admin' : 'mahasiswa');

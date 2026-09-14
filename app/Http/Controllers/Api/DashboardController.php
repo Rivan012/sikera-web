@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\EducationalModule;
-use App\Models\KesproFeed;
-use App\Models\PeriodLog;
 use App\Models\BmiLog;
-use App\Models\ForumThread;
 use App\Models\CaseStudy;
+use App\Models\EducationalModule;
 use App\Models\EvaluationResponse;
+use App\Models\ForumThread;
+use App\Models\KesproFeed;
 use App\Models\ModuleProgress;
+use App\Models\PeriodLog;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -50,13 +50,13 @@ class DashboardController extends Controller
                 'module_number' => $mod->module_number,
                 'title' => $mod->title,
                 'subtitle' => $mod->subtitle,
-                'banner_image' => url($mod->banner_image ?: "/images/banners/banner-module-{$mod->module_number}.svg"),
+                'banner_image' => url("/api/v1/modules/{$mod->id}/banner.svg"),
                 'estimated_time' => $mod->estimated_time,
                 'total_topics' => $mod->topics_count,
                 'completed_topics' => $completedCount,
                 'progress_percentage' => $mod->topics_count > 0 ? round(($completedCount / $mod->topics_count) * 100) : 0,
                 'has_pretest' => $hasPretest,
-                'has_posttest' => (bool)$posttest,
+                'has_posttest' => (bool) $posttest,
                 'n_gain' => $posttest ? $posttest->n_gain_score : null,
             ];
         });

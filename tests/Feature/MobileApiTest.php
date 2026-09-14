@@ -2,12 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\EducationalModule;
-use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
-use App\Models\CaseStudy;
-use App\Models\KesproFeed;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

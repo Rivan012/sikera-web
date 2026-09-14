@@ -2,10 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\EvaluationResponse;
 use App\Models\GoogleSheetSyncLog;
-use Illuminate\Support\Facades\Log;
+use App\Models\User;
 
 class GoogleSheetsSyncService
 {
@@ -36,8 +35,8 @@ class GoogleSheetsSyncService
         return GoogleSheetSyncLog::create([
             'user_id' => $user->id,
             'event_type' => 'pre_test_submission',
-            'student_identifier' => ($user->initials ?? $user->name) . ' (' . ($user->nim ?? 'NIM') . ')',
-            'fakultas_prodi' => ($user->prodi ?? '-') . ' - ' . ($user->fakultas ?? '-'),
+            'student_identifier' => ($user->initials ?? $user->name).' ('.($user->nim ?? 'NIM').')',
+            'fakultas_prodi' => ($user->prodi ?? '-').' - '.($user->fakultas ?? '-'),
             'payload_data' => $payload,
             'sync_status' => 'success',
             'sheet_range' => $sheetRange,
@@ -72,8 +71,8 @@ class GoogleSheetsSyncService
         return GoogleSheetSyncLog::create([
             'user_id' => $user->id,
             'event_type' => 'post_test_submission',
-            'student_identifier' => ($user->initials ?? $user->name) . ' (' . ($user->nim ?? 'NIM') . ')',
-            'fakultas_prodi' => ($user->prodi ?? '-') . ' - ' . ($user->fakultas ?? '-'),
+            'student_identifier' => ($user->initials ?? $user->name).' ('.($user->nim ?? 'NIM').')',
+            'fakultas_prodi' => ($user->prodi ?? '-').' - '.($user->fakultas ?? '-'),
             'payload_data' => $payload,
             'sync_status' => 'success',
             'sheet_range' => $sheetRange,

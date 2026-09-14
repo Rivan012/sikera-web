@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\EducationalModule;
-use App\Models\ModuleTopic;
-use App\Models\ModuleProgress;
 use App\Models\EvaluationResponse;
+use App\Models\ModuleProgress;
+use App\Models\ModuleTopic;
 use Illuminate\Support\Facades\Auth;
 
 class EducationalModuleController extends Controller
@@ -26,9 +26,9 @@ class EducationalModuleController extends Controller
             // Cek status Pre-Test modul ini
             $hasPretest = $user->isAdmin() || $user->isDosen() || EvaluationResponse::where('user_id', $user->id)
                 ->where('type', 'pre_test')
-                ->where(function($q) use ($module) {
+                ->where(function ($q) use ($module) {
                     $q->where('module_number', $module->module_number)
-                      ->orWhereNull('module_number');
+                        ->orWhereNull('module_number');
                 })
                 ->exists();
 
@@ -48,7 +48,7 @@ class EducationalModuleController extends Controller
                 'percentage' => $percentage,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool)$posttest,
+                'has_posttest' => (bool) $posttest,
                 'posttest_score' => $posttest ? $posttest->total_score : null,
                 'n_gain' => $posttest ? $posttest->n_gain_score : null,
             ];
@@ -60,21 +60,21 @@ class EducationalModuleController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        $module = EducationalModule::with(['topics' => fn($q) => $q->orderBy('order_index')])->findOrFail($id);
+        $module = EducationalModule::with(['topics' => fn ($q) => $q->orderBy('order_index')])->findOrFail($id);
 
         // Jika mahasiswa dan belum mengerjakan Pre-Test modul ini -> Gating ke Pre-Test
         if ($user->isMahasiswa()) {
             $hasPretest = EvaluationResponse::where('user_id', $user->id)
                 ->where('type', 'pre_test')
-                ->where(function($q) use ($module) {
+                ->where(function ($q) use ($module) {
                     $q->where('module_number', $module->module_number)
-                      ->orWhereNull('module_number');
+                        ->orWhereNull('module_number');
                 })
                 ->exists();
 
-            if (!$hasPretest) {
+            if (! $hasPretest) {
                 return redirect()->route('modules.pretest.show', $module->id)
-                    ->with('warning', 'Materi Modul ' . $module->module_number . ' terkunci! Anda wajib mengerjakan Pre-Test Modul ' . $module->module_number . ' terlebih dahulu.');
+                    ->with('warning', 'Materi Modul '.$module->module_number.' terkunci! Anda wajib mengerjakan Pre-Test Modul '.$module->module_number.' terlebih dahulu.');
             }
         }
 
@@ -105,15 +105,15 @@ class EducationalModuleController extends Controller
         if ($user->isMahasiswa()) {
             $hasPretest = EvaluationResponse::where('user_id', $user->id)
                 ->where('type', 'pre_test')
-                ->where(function($q) use ($module) {
+                ->where(function ($q) use ($module) {
                     $q->where('module_number', $module->module_number)
-                      ->orWhereNull('module_number');
+                        ->orWhereNull('module_number');
                 })
                 ->exists();
 
-            if (!$hasPretest) {
+            if (! $hasPretest) {
                 return redirect()->route('modules.pretest.show', $module->id)
-                    ->with('warning', 'Silakan selesaikan Pre-Test Modul ' . $module->module_number . ' terlebih dahulu untuk membaca materi.');
+                    ->with('warning', 'Silakan selesaikan Pre-Test Modul '.$module->module_number.' terlebih dahulu untuk membaca materi.');
             }
         }
 
@@ -123,14 +123,14 @@ class EducationalModuleController extends Controller
             ['is_completed' => false]
         );
 
-        if (!$progress->is_completed) {
+        if (! $progress->is_completed) {
             $progress->update(['is_completed' => true, 'completed_at' => now()]);
             $user->increment('points', 10);
         }
 
         // Prev/Next navigation
         $allTopics = ModuleTopic::where('educational_module_id', $moduleId)->orderBy('order_index')->get();
-        $currentIndex = $allTopics->search(fn($t) => $t->id === $topic->id);
+        $currentIndex = $allTopics->search(fn ($t) => $t->id === $topic->id);
         $prevTopic = $currentIndex > 0 ? $allTopics[$currentIndex - 1] : null;
         $nextTopic = $currentIndex < $allTopics->count() - 1 ? $allTopics[$currentIndex + 1] : null;
 

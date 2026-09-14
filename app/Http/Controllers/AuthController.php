@@ -14,9 +14,10 @@ class AuthController extends Controller
         if (Auth::check()) {
             $user = Auth::user();
             if ($user->isMahasiswa()) {
-                if (!$user->is_biodata_filled) {
+                if (! $user->is_biodata_filled) {
                     return redirect()->route('biodata.show');
                 }
+
                 return redirect()->route('mahasiswa.dashboard');
             } elseif ($user->isDosen()) {
                 return redirect()->route('dosen.dashboard');
@@ -24,6 +25,7 @@ class AuthController extends Controller
                 return redirect()->route('admin.dashboard');
             }
         }
+
         return view('auth.login');
     }
 
@@ -39,9 +41,10 @@ class AuthController extends Controller
             $user = Auth::user();
 
             if ($user->isMahasiswa()) {
-                if (!$user->is_biodata_filled) {
+                if (! $user->is_biodata_filled) {
                     return redirect()->route('biodata.show');
                 }
+
                 return redirect()->route('mahasiswa.dashboard');
             } elseif ($user->isDosen()) {
                 return redirect()->route('dosen.dashboard');
@@ -60,6 +63,7 @@ class AuthController extends Controller
         if (Auth::check()) {
             return redirect()->route('dashboard');
         }
+
         return view('auth.register');
     }
 
@@ -79,13 +83,13 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $initials = $validated['initials'] ?: collect(explode(' ', $validated['name']))->map(fn($part) => substr($part, 0, 1))->join('');
+        $initials = $validated['initials'] ?: collect(explode(' ', $validated['name']))->map(fn ($part) => substr($part, 0, 1))->join('');
 
         $user = User::create([
             'name' => $validated['name'],
             'initials' => $initials,
             'email' => $validated['email'],
-            'nim' => $validated['nim'] ? strtoupper($validated['nim']) : ('MHS' . rand(1000, 9999)),
+            'nim' => $validated['nim'] ? strtoupper($validated['nim']) : ('MHS'.rand(1000, 9999)),
             'role' => 'mahasiswa',
             'usia' => $validated['usia'],
             'gender' => $validated['gender'],
@@ -111,6 +115,7 @@ class AuthController extends Controller
         if ($user->is_biodata_filled) {
             return redirect()->route('mahasiswa.dashboard');
         }
+
         return view('auth.biodata', compact('user'));
     }
 

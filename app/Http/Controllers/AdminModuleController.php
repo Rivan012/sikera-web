@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\EducationalModule;
 use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
+use App\Services\ModuleBannerService;
 use App\Services\ModuleExcelImportService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 class AdminModuleController extends Controller
@@ -29,7 +31,7 @@ class AdminModuleController extends Controller
         return view('admin.modules.index', compact('modules'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ModuleBannerService $bannerService)
     {
         $this->authorizeAdmin();
 
@@ -38,7 +40,10 @@ class AdminModuleController extends Controller
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string|max:255',
             'description' => 'required|string',
-            'banner_image' => 'nullable|string',
+            'banner_mode' => 'nullable|string|in:auto,upload,url',
+            'banner_image' => 'nullable|string|max:500',
+            'banner_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'banner_theme' => 'nullable|string|in:teal,amber,rose,indigo,emerald,purple',
             'estimated_time' => 'required|string',
             'topic_title' => 'required|string|max:255',
             'topic_code' => 'required|string|max:10',
@@ -46,13 +51,20 @@ class AdminModuleController extends Controller
             'content_html' => 'required|string',
         ]);
 
-        $bannerIndex = (($validated['module_number'] % 4) ?: 4);
-        $bannerPath = $validated['banner_image'] ?: "/images/banners/banner-module-{$bannerIndex}.svg";
+        $bannerPath = $bannerService->handleBanner(
+            moduleNumber: (int) $validated['module_number'],
+            title: $validated['title'],
+            subtitle: $validated['subtitle'] ?? null,
+            uploadedFile: $request->file('banner_file'),
+            manualUrl: $validated['banner_image'] ?? null,
+            bannerMode: $request->input('banner_mode', 'auto'),
+            colorTheme: $request->input('banner_theme', 'teal')
+        );
 
         $module = EducationalModule::create([
             'module_number' => $validated['module_number'],
             'title' => $validated['title'],
-            'subtitle' => $validated['subtitle'],
+            'subtitle' => $validated['subtitle'] ?? null,
             'description' => $validated['description'],
             'banner_image' => $bannerPath,
             'estimated_time' => $validated['estimated_time'],
@@ -62,13 +74,65 @@ class AdminModuleController extends Controller
             'educational_module_id' => $module->id,
             'topic_code' => $validated['topic_code'],
             'title' => $validated['topic_title'],
-            'youtube_video_id' => $validated['youtube_video_id'],
+            'youtube_video_id' => $validated['youtube_video_id'] ?? null,
             'content_html' => $validated['content_html'],
             'order_index' => 1,
         ]);
 
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Modul edukasi #'.$module->module_number.' ("'.$module->title.'") berhasil diunggah!');
+            ->with('success', 'Modul edukasi #'.$module->module_number.' ("'.$module->title.'") berhasil diunggah dengan banner!');
+    }
+
+    /**
+     * Memperbarui banner modul yang sudah ada
+     */
+    public function updateBanner(Request $request, $id, ModuleBannerService $bannerService)
+    {
+        $this->authorizeAdmin();
+
+        $module = EducationalModule::findOrFail($id);
+
+        $validated = $request->validate([
+            'banner_mode' => 'nullable|string|in:auto,upload,url',
+            'banner_image' => 'nullable|string|max:500',
+            'banner_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'banner_theme' => 'nullable|string|in:teal,amber,rose,indigo,emerald,purple',
+        ]);
+
+        $bannerPath = $bannerService->handleBanner(
+            moduleNumber: (int) $module->module_number,
+            title: $module->title,
+            subtitle: $module->subtitle,
+            uploadedFile: $request->file('banner_file'),
+            manualUrl: $validated['banner_image'] ?? null,
+            bannerMode: $request->input('banner_mode', 'auto'),
+            colorTheme: $request->input('banner_theme', 'teal')
+        );
+
+        $module->update(['banner_image' => $bannerPath]);
+
+        return redirect()->route('admin.modules.index')
+            ->with('success', 'Banner Modul #'.$module->module_number.' berhasil diperbarui!');
+    }
+
+    /**
+     * Preview banner SVG secara instan
+     */
+    public function previewBannerSvg(Request $request, ModuleBannerService $bannerService): Response
+    {
+        $this->authorizeAdmin();
+
+        $number = (int) $request->query('number', 1);
+        $title = (string) $request->query('title', 'Judul Modul Edukasi');
+        $subtitle = $request->query('subtitle');
+        $theme = (string) $request->query('theme', 'teal');
+
+        $svg = $bannerService->generateSvgString($number, $title, $subtitle, $theme);
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Cache-Control' => 'no-cache, private',
+        ]);
     }
 
     public function storeTopic(Request $request, $moduleId)
@@ -90,7 +154,7 @@ class AdminModuleController extends Controller
             'educational_module_id' => $module->id,
             'topic_code' => $validated['topic_code'],
             'title' => $validated['title'],
-            'youtube_video_id' => $validated['youtube_video_id'],
+            'youtube_video_id' => $validated['youtube_video_id'] ?? null,
             'content_html' => $validated['content_html'],
             'order_index' => $orderIndex,
         ]);

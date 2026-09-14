@@ -34,15 +34,19 @@
             <h3 class="mt-5 text-base font-semibold text-gray-800 dark:text-white leading-relaxed">{{ $question->question_text }}</h3>
 
             <div class="mt-5 space-y-3">
-                @foreach($question->options as $option)
+                @foreach($question->options as $key => $option)
+                @php
+                    $optLabel = is_array($option) ? ($option['label'] ?? (is_string($key) && !is_numeric($key) ? $key : chr(65 + $loop->index))) : (is_string($key) && !is_numeric($key) ? $key : chr(65 + $loop->index));
+                    $optText = is_array($option) ? ($option['text'] ?? '') : (string) $option;
+                @endphp
                 <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4 transition hover:border-success-300 hover:bg-success-50/50 dark:border-gray-700 dark:hover:border-success-500/50 dark:hover:bg-success-500/5"
-                    :class="answers['q_{{ $question->id }}'] === '{{ $option['label'] }}' ? 'border-success-500 bg-success-50 dark:border-success-400 dark:bg-success-500/10' : ''">
-                    <input type="radio" name="q_{{ $question->id }}" value="{{ $option['label'] }}"
+                    :class="answers['q_{{ $question->id }}'] === '{{ $optLabel }}' ? 'border-success-500 bg-success-50 dark:border-success-400 dark:bg-success-500/10' : ''">
+                    <input type="radio" name="q_{{ $question->id }}" value="{{ $optLabel }}"
                         x-model="answers['q_{{ $question->id }}']"
                         class="mt-0.5 h-4 w-4 border-gray-300 text-success-500 focus:ring-success-500 dark:border-gray-600">
                     <div>
-                        <span class="text-xs font-bold text-success-500 dark:text-success-400 mr-1">{{ $option['label'] }}.</span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ $option['text'] }}</span>
+                        <span class="text-xs font-bold text-success-500 dark:text-success-400 mr-1">{{ $optLabel }}.</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ $optText }}</span>
                     </div>
                 </label>
                 @endforeach

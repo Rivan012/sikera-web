@@ -11,7 +11,16 @@
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Lembar Data Google Sheets</h2>
             <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">Data mentah terstruktur responden, skor Pre-Test, Post-Test, dan kalkulasi N-Gain untuk analisis statistik.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2.5">
+            <a
+                href="{{ route('admin.evaluations.index') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2 text-xs font-bold text-white shadow-theme-xs hover:bg-brand-600 transition"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                </svg>
+                Lihat Lembar Jawaban Butir Soal
+            </a>
             <span class="inline-flex items-center gap-1.5 rounded-xl bg-success-50 px-3.5 py-2 text-xs font-semibold text-success-700 shadow-theme-xs dark:bg-success-950 dark:text-success-400 border border-success-200 dark:border-success-800">
                 <span class="h-2 w-2 rounded-full bg-success-500 animate-pulse"></span>
                 Webhook API Terhubung
@@ -33,9 +42,15 @@
         </div>
         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
             <p class="text-xs text-gray-500 dark:text-gray-400">Format Ekspor Analisis</p>
-            <h4 class="text-base font-bold text-gray-900 dark:text-white mt-2 flex gap-2">
+            <h4 class="text-base font-bold text-gray-900 dark:text-white mt-2 flex flex-wrap gap-2">
                 <span class="rounded bg-brand-50 px-2 py-0.5 text-xs text-brand-700">SPSS Ready</span>
-                <span class="rounded bg-success-50 px-2 py-0.5 text-xs text-success-700">Excel (.xlsx)</span>
+                <a
+                    href="{{ route('admin.evaluations.export') }}"
+                    class="rounded bg-success-50 px-2 py-0.5 text-xs font-bold text-success-700 hover:bg-success-100 dark:bg-success-950 dark:text-success-400 dark:hover:bg-success-900/60 transition"
+                    title="Unduh Data Post-Test Format Excel"
+                >
+                    Unduh Excel (.xlsx) &darr;
+                </a>
             </h4>
         </div>
     </div>

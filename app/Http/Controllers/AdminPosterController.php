@@ -10,6 +10,7 @@ class AdminPosterController extends Controller
     public function index()
     {
         $posters = KesproFeed::latest()->get();
+
         return view('admin.posters.index', compact('posters'));
     }
 
@@ -41,6 +42,6 @@ class AdminPosterController extends Controller
         $title = $poster->title;
         $poster->delete();
 
-        return redirect()->route('admin.posters.index')->with('success', 'Poster "' . $title . '" berhasil dihapus.');
+        return redirect()->route('admin.posters.index')->with('success', 'Poster "'.$title.'" berhasil dihapus.');
     }
 }

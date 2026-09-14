@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\EducationalModule;
-use App\Models\TestQuestion;
 use App\Models\EvaluationResponse;
+use App\Models\TestQuestion;
 use App\Services\GoogleSheetsSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +23,7 @@ class EvaluationController extends Controller
         }
 
         $questions = TestQuestion::all();
+
         return view('evaluation.pretest', compact('questions'));
     }
 
@@ -33,7 +34,7 @@ class EvaluationController extends Controller
 
         $rules = [];
         foreach ($questions as $q) {
-            $rules['q_' . $q->id] = 'required|string';
+            $rules['q_'.$q->id] = 'required|string';
         }
         $request->validate($rules, [
             'required' => 'Mohon jawab seluruh pertanyaan evaluasi.',
@@ -49,7 +50,7 @@ class EvaluationController extends Controller
         ];
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_' . $q->id);
+            $ans = $request->input('q_'.$q->id);
             $rawAnswers[$q->id] = $ans;
 
             $moduleStats[$q->module_target]['total']++;
@@ -64,7 +65,7 @@ class EvaluationController extends Controller
 
         $scoresPerModule = [];
         foreach ($moduleStats as $mod => $stat) {
-            $scoresPerModule['Modul ' . $mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
+            $scoresPerModule['Modul '.$mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
         }
 
         $pretest = EvaluationResponse::create([
@@ -84,7 +85,7 @@ class EvaluationController extends Controller
 
         GoogleSheetsSyncService::syncPretestSubmission($user, $pretest);
 
-        return redirect()->route('mahasiswa.dashboard')->with('success', 'Pre-Test awal berhasil diselesaikan! Skor awal: ' . $totalScore . '/100. Selamat belajar.');
+        return redirect()->route('mahasiswa.dashboard')->with('success', 'Pre-Test awal berhasil diselesaikan! Skor awal: '.$totalScore.'/100. Selamat belajar.');
     }
 
     /**
@@ -103,7 +104,7 @@ class EvaluationController extends Controller
 
         if ($existingPretest) {
             return redirect()->route('modules.show', $module->id)
-                ->with('info', 'Anda telah menyelesaikan Pre-Test untuk Modul ' . $module->module_number . '. Silakan pelajari materi.');
+                ->with('info', 'Anda telah menyelesaikan Pre-Test untuk Modul '.$module->module_number.'. Silakan pelajari materi.');
         }
 
         $questions = TestQuestion::where('module_target', $module->module_number)->get();
@@ -128,17 +129,17 @@ class EvaluationController extends Controller
 
         $rules = [];
         foreach ($questions as $q) {
-            $rules['q_' . $q->id] = 'required|string';
+            $rules['q_'.$q->id] = 'required|string';
         }
         $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan Pre-Test Modul ' . $module->module_number . ' sebelum melanjutkan.',
+            'required' => 'Mohon jawab seluruh pertanyaan Pre-Test Modul '.$module->module_number.' sebelum melanjutkan.',
         ]);
 
         $rawAnswers = [];
         $correctCount = 0;
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_' . $q->id);
+            $ans = $request->input('q_'.$q->id);
             $rawAnswers[$q->id] = $ans;
             if (strtoupper($ans) === strtoupper($q->correct_answer)) {
                 $correctCount++;
@@ -152,7 +153,7 @@ class EvaluationController extends Controller
             'type' => 'pre_test',
             'module_number' => $module->module_number,
             'raw_answers' => $rawAnswers,
-            'scores_per_module' => ['Modul ' . $module->module_number => $totalScore],
+            'scores_per_module' => ['Modul '.$module->module_number => $totalScore],
             'total_score' => $totalScore,
             'submitted_at' => now(),
         ]);
@@ -162,7 +163,7 @@ class EvaluationController extends Controller
 
         GoogleSheetsSyncService::syncPretestSubmission($user, $pretest);
 
-        return redirect()->route('modules.show', $module->id)->with('success', 'Pre-Test Modul ' . $module->module_number . ' selesai (Skor: ' . $totalScore . '/100). Materi kini terbuka untuk dipelajari!');
+        return redirect()->route('modules.show', $module->id)->with('success', 'Pre-Test Modul '.$module->module_number.' selesai (Skor: '.$totalScore.'/100). Materi kini terbuka untuk dipelajari!');
     }
 
     /**
@@ -175,9 +176,9 @@ class EvaluationController extends Controller
 
         $pretest = EvaluationResponse::where('user_id', $user->id)
             ->where('type', 'pre_test')
-            ->where(function($q) use ($module) {
+            ->where(function ($q) use ($module) {
                 $q->where('module_number', $module->module_number)
-                  ->orWhereNull('module_number');
+                    ->orWhereNull('module_number');
             })
             ->latest()
             ->first();
@@ -202,17 +203,17 @@ class EvaluationController extends Controller
 
         $rules = [];
         foreach ($questions as $q) {
-            $rules['q_' . $q->id] = 'required|string';
+            $rules['q_'.$q->id] = 'required|string';
         }
         $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan Post-Test Modul ' . $module->module_number . '.',
+            'required' => 'Mohon jawab seluruh pertanyaan Post-Test Modul '.$module->module_number.'.',
         ]);
 
         $rawAnswers = [];
         $correctCount = 0;
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_' . $q->id);
+            $ans = $request->input('q_'.$q->id);
             $rawAnswers[$q->id] = $ans;
             if (strtoupper($ans) === strtoupper($q->correct_answer)) {
                 $correctCount++;
@@ -223,9 +224,9 @@ class EvaluationController extends Controller
 
         $pretest = EvaluationResponse::where('user_id', $user->id)
             ->where('type', 'pre_test')
-            ->where(function($q) use ($module) {
+            ->where(function ($q) use ($module) {
                 $q->where('module_number', $module->module_number)
-                  ->orWhereNull('module_number');
+                    ->orWhereNull('module_number');
             })
             ->latest()
             ->first();
@@ -242,7 +243,7 @@ class EvaluationController extends Controller
             'type' => 'post_test',
             'module_number' => $module->module_number,
             'raw_answers' => $rawAnswers,
-            'scores_per_module' => ['Modul ' . $module->module_number => $postScore],
+            'scores_per_module' => ['Modul '.$module->module_number => $postScore],
             'total_score' => $postScore,
             'n_gain_score' => $nGain,
             'submitted_at' => now(),
@@ -253,7 +254,7 @@ class EvaluationController extends Controller
 
         GoogleSheetsSyncService::syncPosttestSubmission($user, $posttest, $nGain);
 
-        return redirect()->route('modules.index')->with('success', 'Selamat! Anda telah menyelesaikan Post-Test Modul ' . $module->module_number . ' (Skor: ' . $postScore . ', N-Gain: ' . $nGain . '). Nilai telah tersimpan ke sistem penelitian.');
+        return redirect()->route('modules.index')->with('success', 'Selamat! Anda telah menyelesaikan Post-Test Modul '.$module->module_number.' (Skor: '.$postScore.', N-Gain: '.$nGain.'). Nilai telah tersimpan ke sistem penelitian.');
     }
 
     /**
@@ -275,7 +276,7 @@ class EvaluationController extends Controller
 
         $rules = [];
         foreach ($questions as $q) {
-            $rules['q_' . $q->id] = 'required|string';
+            $rules['q_'.$q->id] = 'required|string';
         }
         $request->validate($rules, [
             'required' => 'Mohon jawab seluruh pertanyaan instrumen evaluasi Post-Test.',
@@ -291,7 +292,7 @@ class EvaluationController extends Controller
         ];
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_' . $q->id);
+            $ans = $request->input('q_'.$q->id);
             $rawAnswers[$q->id] = $ans;
 
             $moduleStats[$q->module_target]['total']++;
@@ -306,7 +307,7 @@ class EvaluationController extends Controller
 
         $scoresPerModule = [];
         foreach ($moduleStats as $mod => $stat) {
-            $scoresPerModule['Modul ' . $mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
+            $scoresPerModule['Modul '.$mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
         }
 
         $pretest = EvaluationResponse::where('user_id', $user->id)->where('type', 'pre_test')->latest()->first();
@@ -339,6 +340,6 @@ class EvaluationController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')->with('success', 'Post-Test berhasil diselesaikan dan Nilai Akhir & N-Gain telah diperbarui ke Google Sheets (Skor: ' . $postScore . ', N-Gain: ' . $nGain . '). Sesi keluar berhasil.');
+        return redirect()->route('login')->with('success', 'Post-Test berhasil diselesaikan dan Nilai Akhir & N-Gain telah diperbarui ke Google Sheets (Skor: '.$postScore.', N-Gain: '.$nGain.'). Sesi keluar berhasil.');
     }
 }

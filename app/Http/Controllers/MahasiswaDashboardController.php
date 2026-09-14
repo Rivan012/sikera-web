@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BmiLog;
+use App\Models\CaseStudy;
 use App\Models\EducationalModule;
+use App\Models\EvaluationResponse;
+use App\Models\ForumThread;
 use App\Models\KesproFeed;
 use App\Models\PeriodLog;
-use App\Models\BmiLog;
-use App\Models\ForumThread;
-use App\Models\CaseStudy;
-use App\Models\EvaluationResponse;
 use Illuminate\Support\Facades\Auth;
 
 class MahasiswaDashboardController extends Controller

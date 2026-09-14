@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\EvaluationResponse;
-use App\Models\EducationalModule;
-use App\Models\KesproFeed;
-use App\Models\ForumThread;
 use App\Models\CaseStudy;
+use App\Models\EducationalModule;
+use App\Models\EvaluationResponse;
+use App\Models\ForumThread;
+use App\Models\KesproFeed;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 

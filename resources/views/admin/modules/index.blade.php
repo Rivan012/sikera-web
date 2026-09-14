@@ -11,9 +11,19 @@
         moduleToDelete: { id: null, number: '', title: '' },
         uploadExcelModalOpen: false,
         selectedExcelFileName: '',
-        isUploading: false
+        isUploading: false,
+        bannerModalOpen: false,
+        bannerModule: { id: null, number: '', title: '', subtitle: '', currentBanner: '' },
+        createBannerMode: 'auto',
+        createBannerTheme: 'teal',
+        createBannerPreviewUrl: '',
+        createUploadedFileName: '',
+        editBannerMode: 'auto',
+        editBannerTheme: 'teal',
+        editBannerPreviewUrl: '',
+        editUploadedFileName: ''
     }"
-    @keydown.escape.window="deleteModalOpen = false; uploadExcelModalOpen = false"
+    @keydown.escape.window="deleteModalOpen = false; uploadExcelModalOpen = false; bannerModalOpen = false"
     class="space-y-6"
 >
     {{-- Header --}}
@@ -70,41 +80,6 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {{-- Form Upload Modul Baru --}}
         <div class="lg:col-span-5">
-            {{-- Card Quick Upload Excel --}}
-            <div class="mb-6 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50/70 to-emerald-50/50 p-5 shadow-theme-xs dark:border-teal-900/50 dark:from-teal-950/40 dark:to-emerald-950/20">
-                <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm dark:bg-teal-500">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="12" y1="18" x2="12" y2="12"></line>
-                            <line x1="9" y1="15" x2="15" y2="15"></line>
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="text-sm font-bold text-gray-900 dark:text-white">Import Modul Sekaligus via Excel</h4>
-                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                            Unggah banyak modul, submateri ilmiah, dan butir kuesioner sekaligus menggunakan file spreadsheet <code>.xlsx</code>.
-                        </p>
-                        <div class="mt-3 flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
-                                @click="uploadExcelModalOpen = true"
-                                class="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition shadow-sm"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                Unggah File Excel
-                            </button>
-                            <a
-                                href="{{ route('admin.modules.template') }}"
-                                class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:text-teal-800 dark:text-teal-300 dark:hover:text-teal-200 underline"
-                            >
-                                Unduh Template Format
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <div class="rounded-2xl border border-brand-200 bg-white p-6 shadow-theme-xs dark:border-brand-900/50 dark:bg-white/[0.03]">
                 <div class="flex items-center gap-2 mb-1">
                     <span class="rounded-lg bg-brand-50 p-1.5 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
@@ -114,7 +89,7 @@
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-5">Tambahkan modul pembelajaran kesehatan reproduksi baru beserta submateri dan video YouTube.</p>
 
-                <form method="POST" action="{{ route('admin.modules.store') }}" class="space-y-4">
+                <form method="POST" action="{{ route('admin.modules.store') }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -142,10 +117,144 @@
                         <textarea name="description" rows="2" required placeholder="Tujuan dan manfaat materi modul..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white"></textarea>
                     </div>
 
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">URL / Path Banner Gambar (Opsional)</label>
-                        <input type="text" name="banner_image" placeholder="Contoh: /images/banners/banner-module-1.svg" class="w-full rounded-lg border border-gray-300 bg-transparent px-3.5 py-1.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
-                        <p class="text-[10px] text-gray-400 mt-0.5">Biarkan kosong untuk menggunakan template banner otomatis SIKERA.</p>
+                    {{-- Pengaturan Banner Gambar: Upload, URL, atau Auto-Generate --}}
+                    <div class="rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 dark:border-gray-700 dark:bg-gray-800/40 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                                Banner Gambar Modul
+                            </label>
+                            <span class="text-[10px] font-semibold text-brand-600 dark:text-brand-400">
+                                Rasio 800 x 320 px
+                            </span>
+                        </div>
+
+                        {{-- Mode Selector: Auto, Upload, URL --}}
+                        <div class="grid grid-cols-3 gap-1.5 rounded-lg bg-gray-200/80 p-1 dark:bg-gray-700/60 text-[11px] font-semibold">
+                            <button
+                                type="button"
+                                @click="createBannerMode = 'auto'"
+                                :class="createBannerMode === 'auto' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'"
+                                class="rounded-md py-1.5 text-center transition"
+                            >
+                                ✨ Otomatis
+                            </button>
+                            <button
+                                type="button"
+                                @click="createBannerMode = 'upload'"
+                                :class="createBannerMode === 'upload' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'"
+                                class="rounded-md py-1.5 text-center transition"
+                            >
+                                📤 Upload
+                            </button>
+                            <button
+                                type="button"
+                                @click="createBannerMode = 'url'"
+                                :class="createBannerMode === 'url' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'"
+                                class="rounded-md py-1.5 text-center transition"
+                            >
+                                🔗 URL / Path
+                            </button>
+                        </div>
+                        <input type="hidden" name="banner_mode" :value="createBannerMode">
+
+                        {{-- 1. Mode Otomatis Generate --}}
+                        <div x-show="createBannerMode === 'auto'" class="space-y-2">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                                Sistem SIKERA akan otomatis membuat banner SVG beresolusi tinggi dengan judul dan nomor modul Anda.
+                            </p>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                    Pilih Palet Tema Warna
+                                </label>
+                                <div class="grid grid-cols-6 gap-1.5">
+                                    <template x-for="th in [
+                                        { id: 'teal', name: 'Teal', color: '#0f766e' },
+                                        { id: 'amber', name: 'Amber', color: '#b45309' },
+                                        { id: 'rose', name: 'Rose', color: '#be123c' },
+                                        { id: 'indigo', name: 'Indigo', color: '#3730a3' },
+                                        { id: 'emerald', name: 'Emerald', color: '#047857' },
+                                        { id: 'purple', name: 'Purple', color: '#6b21a8' }
+                                    ]">
+                                        <button
+                                            type="button"
+                                            @click="createBannerTheme = th.id"
+                                            :class="createBannerTheme === th.id ? 'ring-2 ring-brand-500 scale-105' : 'opacity-70 hover:opacity-100'"
+                                            class="flex flex-col items-center gap-1 rounded-lg p-1.5 transition"
+                                        >
+                                            <span class="h-5 w-5 rounded-full shadow-sm" :style="'background-color: ' + th.color"></span>
+                                            <span class="text-[9px] font-medium text-gray-600 dark:text-gray-300 truncate w-full text-center" x-text="th.name"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                                <input type="hidden" name="banner_theme" :value="createBannerTheme">
+                            </div>
+                        </div>
+
+                        {{-- 2. Mode Upload File Gambar --}}
+                        <div x-show="createBannerMode === 'upload'" class="space-y-2">
+                            <label class="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
+                                Unggah Berkas Banner Gambar (PNG, JPG, WEBP, SVG)
+                            </label>
+                            <input
+                                type="file"
+                                name="banner_file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                @change="
+                                    const file = $event.target.files[0];
+                                    if (file) {
+                                        createUploadedFileName = file.name;
+                                        createBannerPreviewUrl = URL.createObjectURL(file);
+                                    }
+                                "
+                                class="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/50 dark:file:text-brand-300"
+                            >
+                            <p class="text-[10px] text-gray-400">Ukuran maksimal berkas 5 MB. Format: PNG, JPG, WEBP, SVG.</p>
+                        </div>
+
+                        {{-- 3. Mode URL / Path Teks Manual --}}
+                        <div x-show="createBannerMode === 'url'" class="space-y-1.5">
+                            <label class="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
+                                URL / Path Banner Gambar (Opsional)
+                            </label>
+                            <input
+                                type="text"
+                                name="banner_image"
+                                placeholder="Contoh: /images/banners/banner-module-1.svg atau https://..."
+                                @input="createBannerPreviewUrl = $event.target.value"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            >
+                            <p class="text-[10px] text-gray-400">Gunakan path relatif lokal atau tautan gambar eksternal yang valid.</p>
+                        </div>
+
+                        {{-- Live Preview Banner --}}
+                        <div class="pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Pratinjau Banner:</span>
+                                <span class="text-[10px] text-gray-400" x-text="createBannerMode === 'auto' ? 'Auto-Generate Tema: ' + createBannerTheme : (createBannerMode === 'upload' ? (createUploadedFileName || 'Belum ada file') : 'Custom URL')"></span>
+                            </div>
+                            <div class="relative w-full h-24 rounded-xl bg-gray-900 overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                                <template x-if="createBannerMode === 'upload' && createBannerPreviewUrl">
+                                    <img :src="createBannerPreviewUrl" class="w-full h-full object-cover" alt="Pratinjau Upload">
+                                </template>
+                                <template x-if="createBannerMode === 'url' && createBannerPreviewUrl">
+                                    <img :src="createBannerPreviewUrl" class="w-full h-full object-cover" alt="Pratinjau URL" x-on:error="$el.style.display='none'">
+                                </template>
+                                <template x-if="createBannerMode === 'auto' || (!createBannerPreviewUrl && createBannerMode !== 'auto')">
+                                    <div class="w-full h-full p-3 flex flex-col justify-between" :style="'background: linear-gradient(135deg, ' + (createBannerTheme === 'amber' ? '#b45309, #451a03' : (createBannerTheme === 'rose' ? '#be123c, #4c0519' : (createBannerTheme === 'indigo' ? '#3730a3, #1e1b4b' : (createBannerTheme === 'emerald' ? '#047857, #022c22' : (createBannerTheme === 'purple' ? '#6b21a8, #2e1065' : '#0f766e, #042f2e'))))) + ')'">
+                                        <div class="flex items-center justify-between">
+                                            <span class="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white tracking-wider">
+                                                MODUL AUTO
+                                            </span>
+                                            <span class="text-[9px] text-white/70">SIKERA Banner System</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-white truncate">Otomatis Ter-generate</p>
+                                            <p class="text-[10px] text-white/80 truncate">Judul &amp; nomor modul akan otomatis dirender ke banner SVG</p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50 space-y-3">
@@ -195,6 +304,36 @@
                 <div class="space-y-4">
                     @forelse($modules as $mod)
                     <div class="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+                        {{-- Thumbnail Banner Modul --}}
+                        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-900 mb-3 border border-gray-200 dark:border-gray-700 group">
+                            <img src="{{ $mod->banner_image ?: '/images/banners/banner-module-' . (($mod->module_number % 4) ?: 4) . '.svg' }}" alt="{{ $mod->title }}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end justify-between p-2.5">
+                                <span class="rounded bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white">
+                                    Banner Modul {{ $mod->module_number }}
+                                </span>
+                                <button
+                                    type="button"
+                                    @click="
+                                        bannerModule = {
+                                            id: {{ $mod->id }},
+                                            number: '{{ $mod->module_number }}',
+                                            title: '{{ addslashes($mod->title) }}',
+                                            subtitle: '{{ addslashes($mod->subtitle ?? '') }}',
+                                            currentBanner: '{{ $mod->banner_image }}'
+                                        };
+                                        editBannerMode = 'auto';
+                                        editBannerPreviewUrl = '{{ $mod->banner_image }}';
+                                        editUploadedFileName = '';
+                                        bannerModalOpen = true;
+                                    "
+                                    class="inline-flex items-center gap-1 rounded-md bg-white/95 hover:bg-white px-2 py-0.5 text-[10px] font-bold text-gray-800 transition shadow-sm"
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                                    Ubah Banner
+                                </button>
+                            </div>
+                        </div>
+
                         {{-- Header Modul --}}
                         <div class="flex items-start justify-between gap-3">
                             <div>
@@ -482,6 +621,168 @@
                             <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             Memproses File...
                         </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    {{-- Modal Ubah Banner Modul --}}
+    <div
+        x-show="bannerModalOpen"
+        x-transition
+        class="fixed inset-0 z-99999 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4"
+    >
+        <div
+            @click.away="bannerModalOpen = false"
+            class="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900"
+        >
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                    </span>
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white">
+                            Ubah Banner Modul <span x-text="bannerModule.number"></span>
+                        </h4>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[240px]" x-text="bannerModule.title"></p>
+                    </div>
+                </div>
+                <button @click="bannerModalOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">&times;</button>
+            </div>
+
+            <form
+                method="POST"
+                :action="'/admin/modules/' + bannerModule.id + '/banner'"
+                enctype="multipart/form-data"
+                class="mt-4 space-y-4"
+            >
+                @csrf
+
+                {{-- Mode Selector --}}
+                <div class="grid grid-cols-3 gap-1.5 rounded-lg bg-gray-100 p-1 dark:bg-gray-800 text-xs font-semibold">
+                    <button
+                        type="button"
+                        @click="editBannerMode = 'auto'"
+                        :class="editBannerMode === 'auto' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                        class="rounded-md py-1.5 text-center transition"
+                    >
+                        ✨ Otomatis
+                    </button>
+                    <button
+                        type="button"
+                        @click="editBannerMode = 'upload'"
+                        :class="editBannerMode === 'upload' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                        class="rounded-md py-1.5 text-center transition"
+                    >
+                        📤 Upload
+                    </button>
+                    <button
+                        type="button"
+                        @click="editBannerMode = 'url'"
+                        :class="editBannerMode === 'url' ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                        class="rounded-md py-1.5 text-center transition"
+                    >
+                        🔗 URL
+                    </button>
+                </div>
+                <input type="hidden" name="banner_mode" :value="editBannerMode">
+
+                {{-- Mode 1: Auto Generate Theme --}}
+                <div x-show="editBannerMode === 'auto'" class="space-y-2">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Pilih tema warna baru untuk me-regenerasi banner SVG modul ini:
+                    </p>
+                    <div class="grid grid-cols-6 gap-1.5">
+                        <template x-for="th in [
+                            { id: 'teal', name: 'Teal', color: '#0f766e' },
+                            { id: 'amber', name: 'Amber', color: '#b45309' },
+                            { id: 'rose', name: 'Rose', color: '#be123c' },
+                            { id: 'indigo', name: 'Indigo', color: '#3730a3' },
+                            { id: 'emerald', name: 'Emerald', color: '#047857' },
+                            { id: 'purple', name: 'Purple', color: '#6b21a8' }
+                        ]">
+                            <button
+                                type="button"
+                                @click="editBannerTheme = th.id"
+                                :class="editBannerTheme === th.id ? 'ring-2 ring-brand-500 scale-105' : 'opacity-70 hover:opacity-100'"
+                                class="flex flex-col items-center gap-1 rounded-lg p-1.5 transition"
+                            >
+                                <span class="h-6 w-6 rounded-full shadow-sm" :style="'background-color: ' + th.color"></span>
+                                <span class="text-[9px] font-medium text-gray-600 dark:text-gray-300 truncate w-full text-center" x-text="th.name"></span>
+                            </button>
+                        </template>
+                    </div>
+                    <input type="hidden" name="banner_theme" :value="editBannerTheme">
+                </div>
+
+                {{-- Mode 2: Upload File --}}
+                <div x-show="editBannerMode === 'upload'" class="space-y-2">
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Unggah Berkas Banner Gambar Baru
+                    </label>
+                    <input
+                        type="file"
+                        name="banner_file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        @change="
+                            const file = $event.target.files[0];
+                            if (file) {
+                                editUploadedFileName = file.name;
+                                editBannerPreviewUrl = URL.createObjectURL(file);
+                            }
+                        "
+                        class="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/50 dark:file:text-brand-300"
+                    >
+                    <p class="text-[10px] text-gray-400">PNG, JPG, WEBP, atau SVG (Maks. 5 MB).</p>
+                </div>
+
+                {{-- Mode 3: URL / Path Teks Manual --}}
+                <div x-show="editBannerMode === 'url'" class="space-y-1.5">
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        URL / Path Banner Gambar (Opsional)
+                    </label>
+                    <input
+                        type="text"
+                        name="banner_image"
+                        placeholder="Contoh: /images/banners/custom.png"
+                        :value="bannerModule.currentBanner"
+                        @input="editBannerPreviewUrl = $event.target.value"
+                        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    >
+                </div>
+
+                {{-- Pratinjau Modal --}}
+                <div class="pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Pratinjau Banner:</span>
+                    <div class="relative w-full h-24 rounded-lg bg-gray-900 overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                        <template x-if="editBannerMode === 'upload' && editBannerPreviewUrl">
+                            <img :src="editBannerPreviewUrl" class="w-full h-full object-cover" alt="Pratinjau Upload">
+                        </template>
+                        <template x-if="editBannerMode === 'url' && editBannerPreviewUrl">
+                            <img :src="editBannerPreviewUrl" class="w-full h-full object-cover" alt="Pratinjau URL">
+                        </template>
+                        <template x-if="editBannerMode === 'auto'">
+                            <div class="w-full h-full p-3 flex flex-col justify-between" :style="'background: linear-gradient(135deg, ' + (editBannerTheme === 'amber' ? '#b45309, #451a03' : (editBannerTheme === 'rose' ? '#be123c, #4c0519' : (editBannerTheme === 'indigo' ? '#3730a3, #1e1b4b' : (editBannerTheme === 'emerald' ? '#047857, #022c22' : (editBannerTheme === 'purple' ? '#6b21a8, #2e1065' : '#0f766e, #042f2e'))))) + ')'">
+                                <span class="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white tracking-wider self-start" x-text="'MODUL ' + bannerModule.number"></span>
+                                <p class="text-xs font-bold text-white truncate" x-text="bannerModule.title"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button
+                        type="button"
+                        @click="bannerModalOpen = false"
+                        class="rounded-xl border border-gray-200 px-3.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="submit"
+                        class="rounded-xl bg-brand-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-brand-600 transition shadow-sm"
+                    >
+                        Simpan Banner
                     </button>
                 </div>
             </form>

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CaseStudy;
-use App\Models\ForumThread;
 use App\Models\ForumReply;
+use App\Models\ForumThread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -85,7 +85,7 @@ class CaseAndForumController extends Controller
 
         $thread = ForumThread::create([
             'user_id' => $user->id,
-            'anonymous_alias' => 'Mahasiswa #' . rand(100, 999),
+            'anonymous_alias' => 'Mahasiswa #'.rand(100, 999),
             'title' => $request->title,
             'topic' => $request->topic,
             'content' => $request->content,
@@ -105,7 +105,7 @@ class CaseAndForumController extends Controller
      */
     public function getThreadDetail($id)
     {
-        $thread = ForumThread::with(['replies' => fn($q) => $q->oldest()])->findOrFail($id);
+        $thread = ForumThread::with(['replies' => fn ($q) => $q->oldest()])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -137,7 +137,7 @@ class CaseAndForumController extends Controller
         }
 
         $displayName = $user->isMahasiswa()
-            ? 'Mahasiswa #' . rand(100, 999)
+            ? 'Mahasiswa #'.rand(100, 999)
             : ($user->isDosen() ? 'Dosen PA Konselor' : 'Admin SIKERA');
 
         $roleBadge = $user->role === 'dosen_pa' ? 'dosen_pa' : ($user->role === 'admin' ? 'admin' : 'mahasiswa');

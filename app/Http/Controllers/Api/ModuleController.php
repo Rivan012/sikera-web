@@ -10,6 +10,7 @@ use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
 use App\Services\GoogleSheetsSyncService;
 use App\Services\ModuleExcelImportService;
+use App\Services\ModuleBannerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -51,7 +52,7 @@ class ModuleController extends Controller
                 'title' => $mod->title,
                 'subtitle' => $mod->subtitle,
                 'description' => $mod->description,
-                'banner_image' => url($mod->banner_image ?: "/images/banners/banner-module-{$mod->module_number}.svg"),
+                'banner_image' => url("/api/v1/modules/{$mod->id}/banner.svg"),
                 'estimated_time' => $mod->estimated_time,
                 'total_topics' => $mod->topics_count,
                 'completed_topics' => $completedCount,
@@ -125,7 +126,7 @@ class ModuleController extends Controller
                     'title' => $module->title,
                     'subtitle' => $module->subtitle,
                     'description' => $module->description,
-                    'banner_image' => url($module->banner_image ?: "/images/banners/banner-module-{$module->module_number}.svg"),
+                    'banner_image' => url("/api/v1/modules/{$module->id}/banner.svg"),
                     'estimated_time' => $module->estimated_time,
                 ],
                 'is_locked' => ! $hasPretest,
@@ -544,4 +545,61 @@ class ModuleController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Endpoint API Streaming Banner Modul Edukasi (SVG / Raster dengan CORS Header)
+     */
+    public function getBanner(Request $request, $id, ModuleBannerService $bannerService)
+    {
+        $module = EducationalModule::where('id', $id)
+            ->orWhere('module_number', $id)
+            ->first();
+
+        $moduleNumber = $module ? (int) $module->module_number : (int) $id;
+        $title = $module ? $module->title : "Modul {$id}";
+        $subtitle = $module ? $module->subtitle : null;
+
+        // 1. Cek file custom jika tersimpan di database
+        if ($module && $module->banner_image) {
+            $cleaned = ltrim($module->banner_image, '/');
+            $customPath = public_path($cleaned);
+            if (file_exists($customPath) && is_file($customPath)) {
+                $ext = strtolower(pathinfo($customPath, PATHINFO_EXTENSION));
+                $mime = ($ext === 'svg') ? 'image/svg+xml' : (mime_content_type($customPath) ?: 'image/jpeg');
+                return response()->file($customPath, [
+                    'Content-Type' => $mime,
+                    'Access-Control-Allow-Origin' => '*',
+                    'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers' => '*',
+                    'Cache-Control' => 'public, max-age=86400',
+                ]);
+            }
+        }
+
+        // 2. Cek file banner bawaan di public/images/banners/banner-module-X.svg
+        $defaultSvg = public_path("images/banners/banner-module-{$moduleNumber}.svg");
+        if (file_exists($defaultSvg) && is_file($defaultSvg)) {
+            return response()->file($defaultSvg, [
+                'Content-Type' => 'image/svg+xml',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                'Access-Control-Allow-Headers' => '*',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 3. Fallback generate SVG secara dinamis melalui ModuleBannerService
+        $themeMap = [1 => 'teal', 2 => 'amber', 3 => 'rose', 4 => 'indigo'];
+        $theme = $themeMap[$moduleNumber] ?? 'teal';
+        $svg = $bannerService->generateSvgString($moduleNumber, $title, $subtitle, $theme);
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => '*',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
 }
+

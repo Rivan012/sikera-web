@@ -12,7 +12,7 @@ class EnsurePretestCompleted
     {
         $user = $request->user();
 
-        if ($user && $user->isMahasiswa() && !$user->pretest_completed) {
+        if ($user && $user->isMahasiswa() && ! $user->pretest_completed) {
             // Rute yang diizinkan saat pretest belum selesai
             $allowedRoutes = [
                 'pretest.show',
@@ -20,7 +20,7 @@ class EnsurePretestCompleted
                 'logout',
             ];
 
-            if (!in_array($request->route()->getName(), $allowedRoutes)) {
+            if (! in_array($request->route()->getName(), $allowedRoutes)) {
                 return redirect()->route('pretest.show')
                     ->with('warning', 'Silakan selesaikan kuesioner Pre-Test terlebih dahulu untuk membuka akses seluruh modul dan fitur SIKERA.');
             }

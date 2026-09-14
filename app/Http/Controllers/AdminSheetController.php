@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\GoogleSheetSyncLog;
-use Illuminate\Http\Request;
+use App\Models\User;
 
 class AdminSheetController extends Controller
 {
@@ -16,11 +15,12 @@ class AdminSheetController extends Controller
 
         // Rekap Data Lengkap Responden untuk Spreadsheet View
         $respondenData = User::where('role', 'mahasiswa')
-            ->with(['evaluations' => fn($q) => $q->latest()])
+            ->with(['evaluations' => fn ($q) => $q->latest()])
             ->get()
             ->map(function ($mhs) {
                 $pre = $mhs->evaluations->firstWhere('type', 'pre_test');
                 $post = $mhs->evaluations->firstWhere('type', 'post_test');
+
                 return [
                     'nim' => $mhs->nim ?? '-',
                     'nama_inisial' => $mhs->initials ?? $mhs->name,

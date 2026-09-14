@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\EvaluationResponse;
-use App\Models\EducationalModule;
 use App\Models\ForumThread;
 use App\Models\PeriodLog;
-use App\Models\KesproFeed;
+use App\Models\User;
 use App\Models\UserDailyActivity;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
@@ -47,9 +44,9 @@ class AdminDashboardController extends Controller
         $postTests = EvaluationResponse::where('type', 'post_test')->get();
 
         for ($i = 1; $i <= 4; $i++) {
-            $key = 'Modul ' . $i;
-            $preAvg = $preTests->pluck('scores_per_module')->map(fn($s) => $s[$key] ?? 0)->avg();
-            $postAvg = $postTests->pluck('scores_per_module')->map(fn($s) => $s[$key] ?? 0)->avg();
+            $key = 'Modul '.$i;
+            $preAvg = $preTests->pluck('scores_per_module')->map(fn ($s) => $s[$key] ?? 0)->avg();
+            $postAvg = $postTests->pluck('scores_per_module')->map(fn ($s) => $s[$key] ?? 0)->avg();
             $scoresByModule[] = [
                 'modul' => $key,
                 'pre' => round($preAvg ?? 0, 1),

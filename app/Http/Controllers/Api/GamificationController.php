@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\TriviaQuestion;
 use App\Models\MythFactCard;
-use App\Models\UserDailyActivity;
 use App\Models\SecretDiary;
+use App\Models\TriviaQuestion;
+use App\Models\UserDailyActivity;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Carbon\Carbon;
 
 class GamificationController extends Controller
 {
@@ -280,7 +280,7 @@ class GamificationController extends Controller
         $yesterday = Carbon::yesterday();
         if ($user->last_activity_date && Carbon::parse($user->last_activity_date)->equalTo($yesterday)) {
             $user->increment('streak_days');
-        } elseif (!$user->last_activity_date || !Carbon::parse($user->last_activity_date)->equalTo(Carbon::today())) {
+        } elseif (! $user->last_activity_date || ! Carbon::parse($user->last_activity_date)->equalTo(Carbon::today())) {
             $user->update(['streak_days' => 1]);
         }
         $user->update(['last_activity_date' => Carbon::today()]);

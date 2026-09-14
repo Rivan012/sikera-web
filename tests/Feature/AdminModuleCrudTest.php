@@ -269,4 +269,132 @@ class AdminModuleCrudTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_superadmin_dapat_membuat_modul_dengan_upload_banner_file(): void
+    {
+        $fakeBanner = UploadedFile::fake()->image('custom_banner.png', 800, 320);
+
+        $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
+            'module_number' => 777,
+            'title' => 'Modul Uji Banner Upload',
+            'subtitle' => 'Sub judul uji upload',
+            'description' => 'Deskripsi modul uji',
+            'banner_mode' => 'upload',
+            'banner_file' => $fakeBanner,
+            'estimated_time' => '10 Menit',
+            'topic_title' => 'Submateri Banner Upload',
+            'topic_code' => '777.1',
+            'content_html' => '<p>Konten uji banner upload</p>',
+        ]);
+
+        $response->assertRedirect(route('admin.modules.index'));
+        $response->assertSessionHas('success');
+
+        $module = EducationalModule::where('module_number', 777)->first();
+        $this->assertNotNull($module);
+        $this->assertStringStartsWith('/images/banners/uploads/', $module->banner_image);
+
+        $createdFilePath = public_path(ltrim($module->banner_image, '/'));
+        if (file_exists($createdFilePath)) {
+            @unlink($createdFilePath);
+        }
+    }
+
+    public function test_superadmin_dapat_membuat_modul_dengan_url_path_banner_gambar(): void
+    {
+        $bannerUrl = 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800';
+
+        $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
+            'module_number' => 778,
+            'title' => 'Modul Uji Banner URL',
+            'subtitle' => 'Sub judul uji URL',
+            'description' => 'Deskripsi modul uji URL',
+            'banner_mode' => 'url',
+            'banner_image' => $bannerUrl,
+            'estimated_time' => '15 Menit',
+            'topic_title' => 'Submateri Banner URL',
+            'topic_code' => '778.1',
+            'content_html' => '<p>Konten uji banner URL</p>',
+        ]);
+
+        $response->assertRedirect(route('admin.modules.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('educational_modules', [
+            'module_number' => 778,
+            'banner_image' => $bannerUrl,
+        ]);
+    }
+
+    public function test_superadmin_dapat_membuat_modul_dengan_auto_generated_banner(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
+            'module_number' => 779,
+            'title' => 'Modul Uji Banner Auto Generasi',
+            'subtitle' => 'Sub judul uji auto',
+            'description' => 'Deskripsi modul uji auto',
+            'banner_mode' => 'auto',
+            'banner_theme' => 'rose',
+            'estimated_time' => '20 Menit',
+            'topic_title' => 'Submateri Auto Banner',
+            'topic_code' => '779.1',
+            'content_html' => '<p>Konten uji auto banner</p>',
+        ]);
+
+        $response->assertRedirect(route('admin.modules.index'));
+        $response->assertSessionHas('success');
+
+        $module = EducationalModule::where('module_number', 779)->first();
+        $this->assertNotNull($module);
+        $this->assertStringStartsWith('/images/banners/generated/', $module->banner_image);
+        $this->assertStringEndsWith('.svg', $module->banner_image);
+
+        $svgFilePath = public_path(ltrim($module->banner_image, '/'));
+        $this->assertFileExists($svgFilePath);
+
+        if (file_exists($svgFilePath)) {
+            @unlink($svgFilePath);
+        }
+    }
+
+    public function test_superadmin_dapat_memperbarui_banner_modul_yang_ada(): void
+    {
+        $module = EducationalModule::create([
+            'module_number' => 780,
+            'title' => 'Modul Untuk Uji Update Banner',
+            'subtitle' => 'Sub judul',
+            'description' => 'Deskripsi',
+            'banner_image' => '/images/banners/banner_lama.svg',
+            'estimated_time' => '10 Menit',
+        ]);
+
+        $newBannerUrl = '/images/banners/banner_baru_kustom.png';
+
+        $response = $this->actingAs($this->admin)->post(route('admin.modules.banner.update', $module->id), [
+            'banner_mode' => 'url',
+            'banner_image' => $newBannerUrl,
+        ]);
+
+        $response->assertRedirect(route('admin.modules.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('educational_modules', [
+            'id' => $module->id,
+            'banner_image' => $newBannerUrl,
+        ]);
+    }
+
+    public function test_superadmin_dapat_melihat_preview_banner_svg(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.modules.banner.preview', [
+            'number' => 12,
+            'title' => 'Kesehatan Mental Remaja',
+            'theme' => 'purple',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertHeader('content-type', 'image/svg+xml');
+        $this->assertStringContainsString('MODUL 12', $response->getContent());
+        $this->assertStringContainsString('Kesehatan Mental Remaja', $response->getContent());
+    }
 }

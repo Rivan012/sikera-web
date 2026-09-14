@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -38,13 +37,13 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $initials = $request->initials ?: collect(explode(' ', $request->name))->map(fn($part) => substr($part, 0, 1))->join('');
+        $initials = $request->initials ?: collect(explode(' ', $request->name))->map(fn ($part) => substr($part, 0, 1))->join('');
 
         $user = User::create([
             'name' => $request->name,
             'initials' => $initials,
             'email' => $request->email,
-            'nim' => $request->nim ? strtoupper($request->nim) : ('MHS' . rand(1000, 9999)),
+            'nim' => $request->nim ? strtoupper($request->nim) : ('MHS'.rand(1000, 9999)),
             'role' => 'mahasiswa',
             'usia' => $request->usia,
             'gender' => $request->gender,
@@ -91,7 +90,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Email atau kata sandi yang Anda masukkan tidak sesuai.',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminEvaluationController;
 use App\Http\Controllers\AdminModuleController;
 use App\Http\Controllers\AdminPosterController;
 use App\Http\Controllers\AdminSheetController;
@@ -116,9 +117,11 @@ Route::middleware('auth')->group(function () {
 
     // 3.3 Kelola & Unggah Modul Edukasi
     Route::get('/admin/modules/template', [AdminModuleController::class, 'downloadTemplate'])->name('admin.modules.template');
+    Route::get('/admin/modules/preview-banner', [AdminModuleController::class, 'previewBannerSvg'])->name('admin.modules.banner.preview');
     Route::post('/admin/modules/import', [AdminModuleController::class, 'importExcel'])->name('admin.modules.import');
     Route::get('/admin/modules', [AdminModuleController::class, 'index'])->name('admin.modules.index');
     Route::post('/admin/modules', [AdminModuleController::class, 'store'])->name('admin.modules.store');
+    Route::post('/admin/modules/{id}/banner', [AdminModuleController::class, 'updateBanner'])->name('admin.modules.banner.update');
     Route::post('/admin/modules/{id}/topics', [AdminModuleController::class, 'storeTopic'])->name('admin.modules.topics.store');
     Route::delete('/admin/modules/{id}', [AdminModuleController::class, 'destroy'])->name('admin.modules.destroy');
     Route::delete('/admin/topics/{id}', [AdminModuleController::class, 'destroyTopic'])->name('admin.topics.destroy');
@@ -130,4 +133,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/posters', [AdminPosterController::class, 'index'])->name('admin.posters.index');
     Route::post('/admin/posters', [AdminPosterController::class, 'store'])->name('admin.posters.store');
     Route::delete('/admin/posters/{id}', [AdminPosterController::class, 'destroy'])->name('admin.posters.destroy');
+
+    // 3.6 Analisis & Lembar Jawaban Evaluasi (Pre-Test & Post-Test)
+    Route::get('/admin/evaluations/export', [AdminEvaluationController::class, 'exportExcel'])->name('admin.evaluations.export');
+    Route::get('/admin/evaluations', [AdminEvaluationController::class, 'index'])->name('admin.evaluations.index');
+    Route::get('/admin/evaluations/{id}', [AdminEvaluationController::class, 'show'])->name('admin.evaluations.show');
 });

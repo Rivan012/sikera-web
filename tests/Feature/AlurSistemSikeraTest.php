@@ -241,4 +241,43 @@ class AlurSistemSikeraTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Lembar Data Google Sheets');
     }
+
+    public function test_halaman_pretest_dan_posttest_dapat_merender_soal_dengan_format_opsi_apapun(): void
+    {
+        $mhs = User::where('email', 'mhs@unib.ac.id')->first();
+        $this->actingAs($mhs);
+
+        $module = EducationalModule::create([
+            'module_number' => 999,
+            'title' => 'Modul Uji Format Opsi',
+            'subtitle' => 'Sub judul modul uji',
+            'description' => 'Deskripsi modul uji',
+            'estimated_time' => '10 Menit',
+        ]);
+
+        TestQuestion::create([
+            'module_target' => 999,
+            'question_text' => 'Berapa usia reproduksi sehat menurut BKKBN?',
+            'options' => [
+                'A' => '21 tahun perempuan dan 25 tahun laki-laki',
+                'B' => '15 tahun perempuan dan 17 tahun laki-laki',
+                'C' => '17 tahun perempuan dan 19 tahun laki-laki',
+                'D' => 'Bebas usia berapa pun',
+            ],
+            'correct_answer' => 'A',
+            'explanation' => 'Penjelasan usia reproduksi sehat.',
+        ]);
+
+        // Verifikasi halaman Pre-Test Modul dapat dirender tanpa TypeError
+        $pretestResp = $this->get("/modules/{$module->id}/pretest");
+        $pretestResp->assertStatus(200);
+        $pretestResp->assertSee('21 tahun perempuan dan 25 tahun laki-laki');
+        $pretestResp->assertSee('Pre-Test Modul 999');
+
+        // Verifikasi halaman Post-Test Modul dapat dirender tanpa TypeError
+        $posttestResp = $this->get("/modules/{$module->id}/posttest");
+        $posttestResp->assertStatus(200);
+        $posttestResp->assertSee('21 tahun perempuan dan 25 tahun laki-laki');
+        $posttestResp->assertSee('Post-Test Modul 999');
+    }
 }
