@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap")
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap")
 layer(base);
 
 @import "tailwindcss";
@@ -9,6 +9,48 @@ layer(base);
   --font-*: initial;
   --font-outfit: Outfit, sans-serif;
   --font-jakarta: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-editorial: "Newsreader", Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --color-paper: #faf8f4;
+  --color-parchment: #f2efe9;
+  --color-rule: #d6d0c4;
+  --color-control-border: #78716c;
+  --color-ink: #1c1917;
+  --color-ink-body: #44403c;
+  --color-ink-subtle: #57534e;
+
+  --color-night: #151412;
+  --color-night-surface: #201e1b;
+  --color-night-raised: #292622;
+  --color-night-rule: #3d3832;
+  --color-night-control: #8c857b;
+  --color-night-ink: #f5f2eb;
+  --color-night-body: #d6d0c4;
+
+  --color-pine-950: #0f241b;
+  --color-pine-900: #143326;
+  --color-pine-800: #1d4434;
+  --color-pine-700: #1b4332;
+  --color-pine-600: #245741;
+  --color-pine-400: #52b788;
+  --color-pine-300: #74c69d;
+  --color-pine-200: #95d5b2;
+  --color-pine-100: #d8e8df;
+  --color-pine-50: #e6f0ec;
+  --color-pine-dark-badge: #132e22;
+
+  --color-clay-950: #3b1a14;
+  --color-clay-800: #7f2a18;
+  --color-clay-700: #8c2d19;
+  --color-clay-600: #9e3620;
+  --color-clay-300: #f4a28c;
+  --color-clay-200: #f8c2b4;
+  --color-clay-50: #fdece8;
+
+  --color-ochre-950: #362409;
+  --color-ochre-800: #854d0e;
+  --color-ochre-300: #fcd34d;
+  --color-ochre-50: #fef7e6;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -182,9 +224,47 @@ layer(base);
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
   }
-  button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  a[href],
+  button,
+  summary,
+  select,
+  label[for],
+  label:has(> input[type="checkbox"], > input[type="radio"]),
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="switch"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  input[type="range"],
+  input[type="color"] {
     cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto !important;
+    }
+
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

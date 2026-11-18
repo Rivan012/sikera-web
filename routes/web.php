@@ -13,15 +13,14 @@ use App\Http\Controllers\EducationalModuleController;
 use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\GamificationController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MahasiswaDashboardController;
 use App\Http\Controllers\PosterController;
 use App\Http\Controllers\SelfCareController;
 use Illuminate\Support\Facades\Route;
 
 // 1. Akses Awal
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Route::get('/', LandingController::class)->name('home');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
