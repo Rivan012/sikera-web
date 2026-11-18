@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Route;
 
 // 1. Akses Awal
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    return view('welcome');
+})->name('home');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
