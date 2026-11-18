@@ -12,8 +12,16 @@ class ExampleTest extends TestCase
      */
     public function test_the_application_returns_a_successful_response(): void
     {
-        $response = $this->get('/login');
+        $landingResponse = $this->get('/');
+        $landingResponse->assertStatus(200);
+        $landingResponse->assertSee('SIKERA');
 
-        $response->assertStatus(200);
+        $loginResponse = $this->get('/login');
+        $loginResponse->assertStatus(200);
+        $loginResponse->assertSee('Masuk ke Portal SIKERA');
+
+        $registerResponse = $this->get('/register');
+        $registerResponse->assertStatus(200);
+        $registerResponse->assertSee('Formulir Biodata Mahasiswa');
     }
 }

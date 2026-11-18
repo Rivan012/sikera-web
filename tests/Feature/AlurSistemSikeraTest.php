@@ -21,7 +21,11 @@ class AlurSistemSikeraTest extends TestCase
     public function test_akses_awal_redirect_ke_login(): void
     {
         $response = $this->get('/');
-        $response->assertRedirect(route('login'));
+
+        $response->assertStatus(200);
+        $response->assertSee('SIKERA');
+        $response->assertSee(route('login'), false);
+        $response->assertSee(route('register'), false);
     }
 
     public function test_halaman_masuk_bisa_diakses_langsung(): void
