@@ -50,7 +50,7 @@ class DashboardController extends Controller
                 'module_number' => $mod->module_number,
                 'title' => $mod->title,
                 'subtitle' => $mod->subtitle,
-                'banner_image' => url("/api/v1/modules/{$mod->id}/banner.svg"),
+                'banner_image' => url("/api/v1/modules/{$mod->id}/banner"),
                 'estimated_time' => $mod->estimated_time,
                 'total_topics' => $mod->topics_count,
                 'completed_topics' => $completedCount,

@@ -6,6 +6,7 @@ use App\Models\EducationalModule;
 use App\Models\TestQuestion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MobileApiTest extends TestCase
@@ -89,6 +90,14 @@ class MobileApiTest extends TestCase
                     'selfcare',
                 ],
             ]);
+
+        $module = EducationalModule::where('module_number', 1)->firstOrFail();
+        $moduleData = collect($response->json('data.modules'))->firstWhere('id', $module->id);
+
+        $this->assertSame(
+            url("/api/v1/modules/{$module->id}/banner"),
+            $moduleData['banner_image']
+        );
     }
 
     public function test_api_modul_pretest_baca_dan_posttest(): void
@@ -97,6 +106,12 @@ class MobileApiTest extends TestCase
         $token = $mhs->createToken('test')->plainTextToken;
         $module1 = EducationalModule::where('module_number', 1)->first();
         $topic1 = $module1->topics()->first();
+
+        $moduleDetail = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/modules/{$module1->id}");
+
+        $moduleDetail->assertOk()
+            ->assertJsonPath('data.module.banner_image', url("/api/v1/modules/{$module1->id}/banner"));
 
         // 1. Coba baca materi sebelum Pre-Test -> Ditolak (403 Forbidden)
         $readForbidden = $this->withHeader('Authorization', "Bearer {$token}")
@@ -174,21 +189,69 @@ class MobileApiTest extends TestCase
             ->assertJsonStructure(['data' => ['bmi_log' => ['bmi_value', 'category']]]);
     }
 
-    public function test_api_gamifikasi_trivia_dan_myth_fact(): void
+    public function test_api_returns_404_for_removed_trivia_and_myth_fact_endpoints(): void
     {
         $mhs = User::where('email', 'sample1@unib.ac.id')->first();
         $token = $mhs->createToken('test')->plainTextToken;
 
-        // 1. Trivia
-        $triviaResp = $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson('/api/v1/gamification/trivia');
+        foreach (['trivia', 'myth-fact'] as $feature) {
+            $this->withHeader('Authorization', "Bearer {$token}")
+                ->getJson("/api/v1/gamification/{$feature}")
+                ->assertNotFound();
 
-        $triviaResp->assertStatus(200);
+            $this->withHeader('Authorization', "Bearer {$token}")
+                ->postJson("/api/v1/gamification/{$feature}")
+                ->assertNotFound();
+        }
 
-        // 2. Mitos vs Fakta
-        $mythResp = $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson('/api/v1/gamification/myth-fact');
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/v1/gamification/diary')
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
 
-        $mythResp->assertStatus(200);
+    public function test_api_module_banner_returns_png_jpg_and_svg_content_types(): void
+    {
+        $module = EducationalModule::where('module_number', 1)->firstOrFail();
+        $createdFiles = [];
+
+        try {
+            foreach ([
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'svg' => 'image/svg+xml',
+            ] as $extension => $contentType) {
+                $fileName = 'api-banner-'.Str::uuid().'.'.$extension;
+                $filePath = public_path($fileName);
+                file_put_contents($filePath, '<svg></svg>');
+                $createdFiles[] = $filePath;
+
+                $module->update(['banner_image' => '/'.$fileName]);
+
+                $this->get("/api/v1/modules/{$module->id}/banner")
+                    ->assertOk()
+                    ->assertHeader('content-type', $contentType);
+            }
+        } finally {
+            foreach ($createdFiles as $filePath) {
+                if (is_file($filePath)) {
+                    unlink($filePath);
+                }
+            }
+        }
+
+        $token = User::where('email', 'sample1@unib.ac.id')->firstOrFail()
+            ->createToken('test')
+            ->plainTextToken;
+
+        $modulesResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/v1/modules');
+        $modulesResponse->assertOk();
+        $moduleData = collect($modulesResponse->json('data.modules'))->firstWhere('id', $module->id);
+
+        $this->assertSame(
+            url("/api/v1/modules/{$module->id}/banner"),
+            $moduleData['banner_image']
+        );
     }
 }

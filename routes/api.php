@@ -39,7 +39,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/selfcare/period/walidd/calculate', [SelfCareController::class, 'calculateWalidd']);
     Route::post('/selfcare/period/pbac/calculate', [SelfCareController::class, 'calculatePbac']);
 
-        // 3.1 Banner Modul Edukasi (Publik & CORS)
+    // 3.1 Banner Modul Edukasi (Publik & CORS)
     Route::get('/modules/{id}/banner', [ModuleController::class, 'getBanner']);
     Route::get('/modules/{id}/banner.svg', [ModuleController::class, 'getBanner']);
 
@@ -99,10 +99,6 @@ Route::prefix('v1')->group(function () {
 
         // 4.7 Gamifikasi & Retensi Harian
         Route::prefix('gamification')->group(function () {
-            Route::get('/trivia', [GamificationController::class, 'getTrivia']);
-            Route::post('/trivia', [GamificationController::class, 'submitTrivia']);
-            Route::get('/myth-fact', [GamificationController::class, 'getMythFact']);
-            Route::post('/myth-fact', [GamificationController::class, 'submitMythFact']);
             Route::get('/diary', [GamificationController::class, 'getDiary']);
             Route::post('/diary', [GamificationController::class, 'storeDiary']);
         });

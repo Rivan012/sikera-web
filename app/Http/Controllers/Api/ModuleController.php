@@ -9,8 +9,8 @@ use App\Models\ModuleProgress;
 use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
 use App\Services\GoogleSheetsSyncService;
-use App\Services\ModuleExcelImportService;
 use App\Services\ModuleBannerService;
+use App\Services\ModuleExcelImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -52,7 +52,7 @@ class ModuleController extends Controller
                 'title' => $mod->title,
                 'subtitle' => $mod->subtitle,
                 'description' => $mod->description,
-                'banner_image' => url("/api/v1/modules/{$mod->id}/banner.svg"),
+                'banner_image' => url("/api/v1/modules/{$mod->id}/banner"),
                 'estimated_time' => $mod->estimated_time,
                 'total_topics' => $mod->topics_count,
                 'completed_topics' => $completedCount,
@@ -126,7 +126,7 @@ class ModuleController extends Controller
                     'title' => $module->title,
                     'subtitle' => $module->subtitle,
                     'description' => $module->description,
-                    'banner_image' => url("/api/v1/modules/{$module->id}/banner.svg"),
+                    'banner_image' => url("/api/v1/modules/{$module->id}/banner"),
                     'estimated_time' => $module->estimated_time,
                 ],
                 'is_locked' => ! $hasPretest,
@@ -565,7 +565,14 @@ class ModuleController extends Controller
             $customPath = public_path($cleaned);
             if (file_exists($customPath) && is_file($customPath)) {
                 $ext = strtolower(pathinfo($customPath, PATHINFO_EXTENSION));
-                $mime = ($ext === 'svg') ? 'image/svg+xml' : (mime_content_type($customPath) ?: 'image/jpeg');
+                $mimeTypes = [
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'png' => 'image/png',
+                    'svg' => 'image/svg+xml',
+                ];
+                $mime = $mimeTypes[$ext] ?? (mime_content_type($customPath) ?: 'application/octet-stream');
+
                 return response()->file($customPath, [
                     'Content-Type' => $mime,
                     'Access-Control-Allow-Origin' => '*',
@@ -602,4 +609,3 @@ class ModuleController extends Controller
         ]);
     }
 }
-

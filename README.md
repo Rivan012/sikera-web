@@ -55,9 +55,10 @@ Backend SIKERA dilengkapi dengan **REST API lengkap menggunakan Laravel Sanctum*
 * Self-Care Tools & Period tracker (`/api/v1/selfcare/*`)
 * Poster Kaspro download & share (`/api/v1/posters/*`)
 * Studi Kasus & Forum tanya jawab (`/api/v1/cases`, `/api/v1/forum/*`)
-* Gamifikasi Trivia, Mitos/Fakta, Diary (`/api/v1/gamification/*`)
+* Secret Diary / Mood Log (`/api/v1/gamification/diary`)
 
 > 📖 Dokumentasi lengkap endpoint API: **[`API_DOCUMENTATION.md`](API_DOCUMENTATION.md)**
+> Panduan membuat aplikasi Flutter: **[`mobile.md`](mobile.md)**
 
 ---
 

@@ -106,7 +106,7 @@ Content-Type: application/json
           "id": 1,
           "module_number": 1,
           "title": "Anatomi, Fisiologi, & Higienitas Reproduksi",
-          "banner_image": "http://localhost:8000/images/banners/banner-module-1.svg",
+          "banner_image": "http://localhost:8000/api/v1/modules/1/banner",
           "total_topics": 4,
           "completed_topics": 2,
           "progress_percentage": 50,
@@ -133,6 +133,10 @@ Content-Type: application/json
 
 ### 3.2. Detail Modul & Daftar Submateri
 - **Method & URL**: `GET /api/v1/modules/{id}` *(Auth Required)*
+
+### Banner Modul (Publik)
+- **Method & URL**: `GET /api/v1/modules/{id}/banner`
+- **Deskripsi**: Mengambil banner modul dalam format file yang tersimpan. Format PNG, JPG/JPEG, dan SVG didukung; banner otomatis yang dibuat sistem menggunakan SVG. Respons mengirimkan `Content-Type` sesuai format gambar.
 
 ### 3.3. Ambil Soal Pre-Test Modul
 - **Method & URL**: `GET /api/v1/modules/{id}/pretest` *(Auth Required)*
@@ -545,9 +549,5 @@ Perhitungan perkiraan siklus menstruasi pada SIKERA:
 
 ## 7. Gamifikasi Harian (`/api/v1/gamification`)
 
-- `GET /api/v1/gamification/trivia` &rarr; Ambil kuis trivia harian.
-- `POST /api/v1/gamification/trivia` &rarr; Kirim jawaban trivia (`question_id`, `answer`).
-- `GET /api/v1/gamification/myth-fact` &rarr; Ambil kartu Mitos vs Fakta harian.
-- `POST /api/v1/gamification/myth-fact` &rarr; Kirim tebakan (`card_id`, `answer`: `"fact"` / `"myth"`).
 - `GET /api/v1/gamification/diary` &rarr; Daftar riwayat catatan mood.
 - `POST /api/v1/gamification/diary` &rarr; Simpan catatan mood (`mood`, `encrypted_note`, `entry_date`).
