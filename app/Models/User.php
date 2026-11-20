@@ -31,6 +31,8 @@ class User extends Authenticatable
         'streak_days',
         'last_activity_date',
         'password',
+        'google_id',
+        'avatar',
     ];
 
     protected $hidden = [

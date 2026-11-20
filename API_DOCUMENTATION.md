@@ -78,6 +78,7 @@ Content-Type: application/json
         "id": 1,
         "name": "Aisyah Putri Maharani",
         "email": "mhs@unib.ac.id",
+        "avatar": null,
         "gender": "P",
         "points": 50,
         "streak_days": 3
@@ -85,6 +86,7 @@ Content-Type: application/json
     }
   }
   ```
+  Properti `avatar` juga tersedia pada objek `user` di respons registrasi dan login. Nilainya berupa URL foto profil jika tersedia, atau `null`.
 
 ### 1.4. Logout
 - **Method & URL**: `POST /api/v1/auth/logout` *(Auth Required)*

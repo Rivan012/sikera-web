@@ -56,8 +56,14 @@
             <div class="hidden h-6 w-px bg-slate-200 dark:bg-slate-700 md:block" aria-hidden="true"></div>
 
             <div class="flex items-center gap-2.5">
-                <div class="flex h-9 min-w-9 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 px-2 text-xs font-bold text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-200">
-                    {{ $avatarInitial }}
+                <div
+                    class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-teal-200 bg-teal-50 text-xs font-bold text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-200">
+                    @if ($currentUser->avatar)
+                        <img src="{{ $currentUser->avatar }}" alt="{{ $currentUser->name }}" width="36" height="36"
+                            referrerpolicy="no-referrer" class="h-full w-full object-cover">
+                    @else
+                        <span>{{ $avatarInitial }}</span>
+                    @endif
                 </div>
                 <div class="hidden md:block">
                     <span class="block max-w-[160px] truncate text-xs font-semibold text-slate-900 dark:text-white">{{ $currentUser->name }}</span>

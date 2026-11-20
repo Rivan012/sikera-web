@@ -72,6 +72,19 @@ class MobileApiTest extends TestCase
             ->assertJsonStructure(['success', 'data' => ['token']]);
     }
 
+    public function test_authenticated_profile_response_includes_avatar_url(): void
+    {
+        $avatarUrl = 'https://example.test/avatar.jpg';
+        $user = User::factory()->create(['avatar' => $avatarUrl]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/v1/auth/me');
+
+        $response->assertOk()
+            ->assertJsonPath('data.user.avatar', $avatarUrl);
+    }
+
     public function test_api_dashboard_mahasiswa(): void
     {
         $mhs = User::where('email', 'sample1@unib.ac.id')->first();

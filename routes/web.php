@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminModuleController;
 use App\Http\Controllers\AdminPosterController;
 use App\Http\Controllers\AdminSheetController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CaseStudyController;
 use App\Http\Controllers\DosenDashboardController;
@@ -21,6 +22,17 @@ use Illuminate\Support\Facades\Route;
 
 // 1. Akses Awal
 Route::get('/', LandingController::class)->name('home');
+
+// Login Google
+Route::get('/auth/google', [
+    GoogleController::class,
+    'redirect',
+])->name('google.redirect');
+
+Route::get('/auth/google/callback', [
+    GoogleController::class,
+    'callback',
+])->name('google.callback');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
