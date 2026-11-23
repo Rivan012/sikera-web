@@ -17,6 +17,7 @@ use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MahasiswaDashboardController;
 use App\Http\Controllers\PosterController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SelfCareController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/force-logout', [AuthController::class, 'forceLogout'])->name('force.logout');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/profil', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profil', [ProfileController::class, 'update'])->name('profile.update');
+
     // Pengalihan umum otomatis sesuai role
     Route::get('/dashboard', function () {
         $user = auth()->user();

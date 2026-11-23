@@ -1,0 +1,116 @@
+SIKERA | Panduan API profil
+Versi v1
+
+Membaca dan menyimpan profil sendiri
+-----------------------------------
+Gunakan host instalasi SIKERA Anda. Kedua endpoint memakai token Sanctum.
+Identitas pemilik profil ditentukan oleh token.
+
+1. Masuk melalui POST /api/v1/auth/login. Untuk akun lokal, kirim JSON
+   berisi email dan password. Ambil token dari data.token pada respons 200.
+2. Ambil data awal formulir melalui GET /api/v1/auth/me.
+3. Kirim formulir melalui PUT /api/v1/auth/me. Gunakan data.user pada
+   respons 200 untuk memperbarui profil yang ditampilkan aplikasi.
+
+Header untuk kedua endpoint
+    Accept: application/json
+    Authorization: Bearer <token>
+
+Tambahkan header ini saat mengirim JSON
+    Content-Type: application/json
+
+Kolom formulir
+--------------
+Kolom                 Aturan
+name                  Wajib. Nama lengkap, maksimal 255 karakter.
+email                 Wajib. Alamat email unik, maksimal 255 karakter.
+current_password      Wajib saat akun lokal mengganti email. Kirim kata
+                      sandi yang sedang berlaku. Ini tidak mengganti sandi.
+initials              Opsional. Inisial responden, maksimal 50 karakter.
+nim                   Opsional. Teks unik, maksimal 50 karakter. Huruf
+                      disimpan dalam bentuk kapital. Kirim sebagai string
+                      agar angka nol di depan tetap tersimpan.
+usia                  Wajib untuk mahasiswa, bilangan bulat 15–40.
+                      Untuk dosen PA dan admin, opsional dan bernilai 10–100.
+gender                Wajib untuk mahasiswa. Gunakan "L" atau "P".
+agama                 Wajib untuk mahasiswa. Teks, maksimal 255 karakter.
+prodi                 Wajib untuk mahasiswa. Teks, maksimal 255 karakter.
+pendidikan_terakhir   Wajib untuk mahasiswa. Teks, maksimal 255 karakter.
+fakultas              Opsional. Teks, maksimal 255 karakter.
+menarche_age          Opsional. Usia saat haid pertama, bilangan bulat 8–25.
+avatar                Opsional untuk akun lokal. URL foto berawalan https://,
+                      maksimal 2048 karakter. Kirim null untuk menghapus.
+
+Untuk dosen PA dan admin, gender, agama, prodi, dan pendidikan_terakhir
+juga opsional. Kolom opsional yang dilewati mempertahankan nilai tersimpan.
+Gunakan null untuk mengosongkan kolom opsional yang dapat diedit.
+
+Pada akun Google (data.user.google_id terisi), kirim email yang tersimpan
+dan lewatkan avatar. Email serta foto akun tersebut mengikuti Google.
+Pada akun lokal, perubahan email mengosongkan status verifikasi email.
+
+Setelah profil mahasiswa berhasil disimpan, is_biodata_filled bernilai true.
+ID, peran, poin, hasil evaluasi, dan identitas Google dikelola sistem.
+Aplikasi klien cukup mengirim kolom formulir yang tercantum di atas.
+
+Contoh permintaan mahasiswa dengan email yang sama
+--------------------------------------------------
+PUT /api/v1/auth/me
+
+{
+  "name": "Dewi Anggraini",
+  "initials": "DA",
+  "email": "dewi@example.test",
+  "nim": "a123",
+  "usia": 20,
+  "gender": "P",
+  "agama": "Islam",
+  "prodi": "Farmasi",
+  "fakultas": "MIPA",
+  "pendidikan_terakhir": "SMA",
+  "menarche_age": 12
+}
+
+Contoh cURL (Bash)
+------------------
+Isi BASE_URL dengan alamat instalasi, TOKEN dengan data.token, dan simpan
+JSON contoh di atas sebagai profil.json. Sesuaikan datanya dengan akun Anda.
+
+curl -H "Accept: application/json" -H "Authorization: Bearer $TOKEN" "$BASE_URL/api/v1/auth/me"
+
+curl -X PUT -H "Accept: application/json" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary @profil.json "$BASE_URL/api/v1/auth/me"
+
+Contoh respons berhasil (200, sebagian kolom)
+---------------------------------------------
+{
+  "success": true,
+  "message": "Profil berhasil diperbarui.",
+  "data": {
+    "user": {
+      "id": 7,
+      "name": "Dewi Anggraini",
+      "email": "dewi@example.test",
+      "nim": "A123",
+      "role": "mahasiswa",
+      "is_biodata_filled": true
+    }
+  }
+}
+
+GET memakai struktur data.user yang sama dengan pesan
+"Data profil berhasil diambil."
+
+Jika permintaan gagal
+---------------------
+401  Token belum dikirim, salah, atau sudah dicabut. Masuk kembali untuk
+     memperoleh token baru.
+422  Periksa errors untuk mengetahui kolom yang harus diperbaiki. Setiap
+     kunci berisi daftar pesan. Perubahan disimpan setelah semua kolom valid.
+
+Contoh 422 jika NIM sudah digunakan
+{
+  "message": "NIM sudah digunakan akun lain.",
+  "errors": {
+    "nim": ["NIM sudah digunakan akun lain."]
+  }
+}

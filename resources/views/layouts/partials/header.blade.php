@@ -5,7 +5,7 @@
         'admin' => 'Pengelola Riset',
         default => 'Mahasiswa Responden',
     };
-    $avatarInitial = strtoupper(substr($currentUser->initials ?: $currentUser->name, 0, 2));
+    $avatarInitial = mb_strtoupper(mb_substr($currentUser->initials ?: $currentUser->name, 0, 2));
 @endphp
 
 <header class="sticky top-0 z-9999 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -55,7 +55,8 @@
 
             <div class="hidden h-6 w-px bg-slate-200 dark:bg-slate-700 md:block" aria-hidden="true"></div>
 
-            <div class="flex items-center gap-2.5">
+            <a href="{{ route('profile.edit') }}" aria-label="Edit profil" title="Edit profil"
+                class="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-lg px-1 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 dark:hover:bg-slate-800 dark:focus-visible:outline-teal-400">
                 <div
                     class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-teal-200 bg-teal-50 text-xs font-bold text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-200">
                     @if ($currentUser->avatar)
@@ -69,7 +70,7 @@
                     <span class="block max-w-[160px] truncate text-xs font-semibold text-slate-900 dark:text-white">{{ $currentUser->name }}</span>
                     <span class="block text-[11px] font-medium text-slate-600 dark:text-slate-300">{{ $roleLabel }}</span>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 </header>

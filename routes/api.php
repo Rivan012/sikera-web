@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\GamificationController;
 use App\Http\Controllers\Api\ModuleController;
 use App\Http\Controllers\Api\PosterController;
 use App\Http\Controllers\Api\SelfCareController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -49,6 +50,7 @@ Route::prefix('v1')->group(function () {
         // 4.1 Auth & Profil
         Route::prefix('auth')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
+            Route::put('/me', [ProfileController::class, 'updateApi']);
             Route::put('/biodata', [AuthController::class, 'updateBiodata']);
             Route::post('/logout', [AuthController::class, 'logout']);
         });
