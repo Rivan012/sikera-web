@@ -4,9 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
+use Laravel\Socialite\Two\GoogleProvider;
 
 class AuthController extends Controller
 {
@@ -73,8 +79,12 @@ class AuthController extends Controller
     /**
      * Login Akun
      */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
+        if ($request->has('id_token')) {
+            return $this->loginWithGoogle($request);
+        }
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string',
@@ -97,6 +107,129 @@ class AuthController extends Controller
             ], 401);
         }
 
+        return $this->loginResponse($user);
+    }
+
+    private function loginWithGoogle(Request $request): JsonResponse
+    {
+        $credentials = $request->validate([
+            'id_token' => ['bail', 'required', 'string', 'min:101', 'max:8192', 'regex:/\A[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\z/'],
+        ]);
+
+        try {
+            $identity = $this->resolveGoogleProviderForToken($credentials['id_token'])
+                ->userFromToken($credentials['id_token']);
+        } catch (Exception) {
+            return response()->json(['success' => false, 'message' => 'Token Google gagal diverifikasi. Silakan masuk kembali.'], 401);
+        }
+
+        $claims = $identity->getRaw();
+        if (! is_string($identity->id) || $identity->id === '' || ! filter_var($identity->email, FILTER_VALIDATE_EMAIL)
+            || ($claims['email_verified'] ?? false) !== true || ($claims['exp'] ?? 0) <= time()) {
+            return response()->json(['success' => false, 'message' => 'Identitas Google tidak dapat diverifikasi.'], 401);
+        }
+
+        $user = User::where('google_id', $identity->id)->first();
+        if ($user) {
+            return $this->loginResponse($user);
+        }
+
+        if (! str_ends_with(strtolower($identity->email), '@gmail.com') && empty($claims['hd'])) {
+            return response()->json(['success' => false, 'message' => 'Untuk alamat email ini, silakan masuk dengan email dan kata sandi SIKERA.'], 401);
+        }
+
+        $user = User::firstOrCreate(['email' => $identity->email], fn () => [
+            'name' => $identity->name ?: $identity->email,
+            'google_id' => $identity->id,
+            'avatar' => $identity->avatar,
+            'password' => Hash::make(Str::random(64)),
+        ]);
+
+        if ($user->google_id === null) {
+            User::whereKey($user->id)->whereNull('google_id')->update([
+                'google_id' => $identity->id,
+                'avatar' => $identity->avatar,
+            ]);
+        }
+        $user->refresh();
+
+        if ($user->google_id !== $identity->id) {
+            return response()->json(['success' => false, 'message' => 'Akun SIKERA ini sudah terhubung dengan akun Google lain.'], 401);
+        }
+
+        return $this->loginResponse($user);
+    }
+
+    private function resolveGoogleProviderForToken(string $idToken): AbstractProvider
+    {
+        $defaultClientId = trim((string) config('services.google.client_id', ''));
+        $allowedClientIds = $this->allowedGoogleClientIds();
+        $tokenAudience = $this->extractJwtAudience($idToken);
+
+        if ($tokenAudience !== null
+            && $tokenAudience !== $defaultClientId
+            && in_array($tokenAudience, $allowedClientIds, true)) {
+            return Socialite::buildProvider(GoogleProvider::class, [
+                'client_id' => $tokenAudience,
+                'client_secret' => '',
+                'redirect' => '',
+            ]);
+        }
+
+        return Socialite::driver('google');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedGoogleClientIds(): array
+    {
+        $configured = config('services.google.allowed_client_ids');
+        $candidates = is_array($configured) ? $configured : [];
+
+        foreach (['client_id', 'android_client_id', 'ios_client_id'] as $key) {
+            $value = config("services.google.{$key}");
+            if (is_string($value) && trim($value) !== '') {
+                $candidates[] = trim($value);
+            }
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn ($id) => is_string($id) ? trim($id) : '', $candidates),
+            static fn (string $id) => $id !== '',
+        )));
+    }
+
+    private function extractJwtAudience(string $idToken): ?string
+    {
+        $segments = explode('.', $idToken);
+        if (count($segments) !== 3) {
+            return null;
+        }
+
+        $payload = strtr($segments[1], '-_', '+/');
+        $padding = strlen($payload) % 4;
+        if ($padding > 0) {
+            $payload .= str_repeat('=', 4 - $padding);
+        }
+
+        $decoded = base64_decode($payload, true);
+        if (! is_string($decoded)) {
+            return null;
+        }
+
+        $claims = json_decode($decoded, true);
+        if (! is_array($claims)) {
+            return null;
+        }
+
+        $aud = $claims['aud'] ?? null;
+
+        return is_string($aud) && trim($aud) !== '' ? trim($aud) : null;
+    }
+
+    private function loginResponse(User $user): JsonResponse
+    {
         $token = $user->createToken('flutter-mobile-app')->plainTextToken;
 
         return response()->json([

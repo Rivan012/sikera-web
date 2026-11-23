@@ -38,6 +38,16 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'android_client_id' => env('GOOGLE_ANDROID_CLIENT_ID'),
+        'ios_client_id' => env('GOOGLE_IOS_CLIENT_ID'),
+        'allowed_client_ids' => array_values(array_filter(array_unique(array_merge(
+            [
+                env('GOOGLE_CLIENT_ID'),
+                env('GOOGLE_ANDROID_CLIENT_ID'),
+                env('GOOGLE_IOS_CLIENT_ID'),
+            ],
+            array_map('trim', explode(',', (string) env('GOOGLE_ALLOWED_CLIENT_IDS', ''))),
+        )))),
     ],
 
 ];

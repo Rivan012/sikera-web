@@ -47,6 +47,7 @@ Content-Type: application/json
 
 ### 1.2. Login
 - **Method & URL**: `POST /api/v1/auth/login`
+- Untuk login Google dari aplikasi, kirim `{"id_token":"<ID token Google>"}`. Setelah token terverifikasi (mendukung `GOOGLE_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, dan `GOOGLE_ALLOWED_CLIENT_IDS`), format respons sama dengan login email.
 - **Request Body**:
   ```json
   {
