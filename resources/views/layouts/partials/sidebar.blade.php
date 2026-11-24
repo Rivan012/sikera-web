@@ -18,12 +18,10 @@
     >
         <a
             href="{{ route('dashboard') }}"
+            aria-label="Dasbor SIKERA"
             class="inline-flex min-h-11 items-center gap-3 rounded-lg px-1.5 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 dark:focus-visible:outline-teal-400"
         >
-            <span class="flex h-8 w-1.5 shrink-0 flex-col overflow-hidden rounded-sm" aria-hidden="true">
-                <span class="h-5 w-full bg-teal-700 dark:bg-teal-400"></span>
-                <span class="h-3 w-full bg-rose-600 dark:bg-rose-500"></span>
-            </span>
+            <img src="{{ asset('images/sikera-logo.webp') }}" alt="" width="44" height="44" class="shrink-0">
             <span class="logo flex flex-col" :class="sidebarToggle ? 'lg:hidden' : ''">
                 <span class="text-base font-bold leading-tight tracking-tight text-slate-900 dark:text-white">SIKERA</span>
                 <span class="text-[11px] font-medium text-slate-600 dark:text-slate-300">Sistem Informasi Kesehatan Remaja</span>

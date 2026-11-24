@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') | SIKERA (Sistem Informasi Kesehatan Remaja)</title>
+    <link rel="icon" type="image/webp" href="{{ asset('images/sikera-logo.webp') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -24,10 +25,7 @@
                 aria-label="Kembali ke beranda SIKERA"
                 class="inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1.5 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 dark:focus-visible:outline-teal-400 sm:gap-3"
             >
-                <span class="flex h-8 w-1.5 shrink-0 flex-col overflow-hidden rounded-sm" aria-hidden="true">
-                    <span class="h-5 w-full bg-teal-700 dark:bg-teal-400"></span>
-                    <span class="h-3 w-full bg-rose-600 dark:bg-rose-500"></span>
-                </span>
+                <img src="{{ asset('images/sikera-logo.webp') }}" alt="" width="44" height="44" class="shrink-0">
                 <span class="flex flex-col">
                     <span class="text-base font-bold leading-tight tracking-tight text-slate-900 dark:text-white">SIKERA</span>
                     <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Sistem Informasi Kesehatan Remaja</span>

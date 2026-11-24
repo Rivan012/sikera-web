@@ -30,6 +30,8 @@ Route::get('/auth/google', [
     'redirect',
 ])->name('google.redirect');
 
+Route::get('/auth/google/start', [GoogleController::class, 'start'])->name('google.start');
+
 Route::get('/auth/google/callback', [
     GoogleController::class,
     'callback',

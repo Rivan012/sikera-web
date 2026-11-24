@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIKERA (Sistem Informasi Kesehatan Remaja)</title>
+    <link rel="icon" type="image/webp" href="{{ asset('images/sikera-logo.webp') }}">
     <meta name="description" content="Publikasi edukasi ilmiah kesehatan reproduksi remaja, referensi klinis menstruasi FIGO, galeri poster Kaspro, dan instrumen evaluasi kognitif Pre-Test serta Post-Test mahasiswa di tiga universitas.">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
@@ -36,10 +37,7 @@
                     href="#beranda"
                     class="inline-flex min-h-11 items-center gap-3 rounded-lg px-1.5 py-1 transition-colors hover:bg-parchment active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine-700 dark:hover:bg-night-surface dark:focus-visible:outline-pine-300"
                 >
-                    <span class="flex h-8 w-1.5 shrink-0 flex-col overflow-hidden rounded-xs" aria-hidden="true">
-                        <span class="h-5 w-full bg-pine-700 dark:bg-pine-400"></span>
-                        <span class="h-3 w-full bg-clay-600 dark:bg-clay-300"></span>
-                    </span>
+                    <img src="{{ asset('images/sikera-logo.webp') }}" alt="" width="44" height="44" class="shrink-0">
                     <span class="flex flex-col">
                         <span class="font-editorial text-lg font-bold leading-none tracking-tight text-ink dark:text-night-ink">SIKERA</span>
                         <span class="mt-0.5 text-[11px] font-medium text-ink-body dark:text-night-body">Sistem Informasi Kesehatan Remaja</span>
@@ -953,10 +951,7 @@
             <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                 <div class="flex flex-col justify-between gap-6 border-b border-rule pb-6 dark:border-night-rule md:flex-row md:items-center">
                     <div class="flex items-center gap-3">
-                        <span class="flex h-7 w-1.5 shrink-0 flex-col overflow-hidden rounded-xs" aria-hidden="true">
-                            <span class="h-4 w-full bg-pine-700 dark:bg-pine-400"></span>
-                            <span class="h-3 w-full bg-clay-600 dark:bg-clay-300"></span>
-                        </span>
+                        <img src="{{ asset('images/sikera-logo.webp') }}" alt="" width="64" height="64" class="shrink-0">
                         <div>
                             <p class="font-editorial text-base font-bold text-ink dark:text-night-ink">SIKERA</p>
                             <p class="text-xs text-ink-body dark:text-night-body">Sistem Informasi Kesehatan Remaja</p>

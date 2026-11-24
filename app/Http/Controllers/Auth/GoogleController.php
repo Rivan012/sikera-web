@@ -26,10 +26,15 @@ class GoogleController extends Controller
             }
 
             if (strcasecmp($request->getSchemeAndHttpHost(), $callbackOrigin) !== 0) {
-                return redirect()->to($callbackOrigin.route('google.redirect', [], false));
+                return redirect()->to($callbackOrigin.route('google.start', [], false));
             }
         }
 
+        return $this->start();
+    }
+
+    public function start(): RedirectResponse
+    {
         return Socialite::driver('google')->redirect();
     }
 

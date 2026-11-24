@@ -158,7 +158,29 @@ class GoogleLoginTest extends TestCase
 
         $response = $this->get('http://127.0.0.1:8000/auth/google');
 
-        $response->assertRedirect('http://localhost:8000/auth/google');
+        $response->assertRedirect('http://localhost:8000/auth/google/start');
+    }
+
+    public function test_web_login_reaches_google_behind_an_https_proxy(): void
+    {
+        $callback = 'https://sikera.example/auth/google/callback';
+        config([
+            'services.google.redirect' => $callback,
+            'services.google.client_id' => 'web-client',
+            'services.google.client_secret' => 'test-secret',
+        ]);
+
+        $start = $this->get('http://sikera.example/auth/google')
+            ->assertRedirect('https://sikera.example/auth/google/start');
+
+        $path = parse_url($start->headers->get('Location'), PHP_URL_PATH);
+        $authorization = $this->get('http://sikera.example'.$path)->assertRedirect();
+        $destination = $authorization->headers->get('Location');
+        $this->assertSame('accounts.google.com', parse_url($destination, PHP_URL_HOST));
+        parse_str(parse_url($destination, PHP_URL_QUERY), $query);
+        $this->assertSame($callback, $query['redirect_uri']);
+        $this->assertNotEmpty($query['state']);
+        $authorization->assertSessionHas('state', $query['state']);
     }
 
     public function test_google_callback_creates_user_with_long_avatar_url(): void
