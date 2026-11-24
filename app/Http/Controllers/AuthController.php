@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateBiodataRequest;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -73,6 +75,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'initials' => 'nullable|string|max:50',
             'usia' => 'required|integer|min:15|max:40',
+            'menarche_age' => 'nullable|integer|between:8,25',
             'gender' => 'required|in:L,P',
             'agama' => 'required|string',
             'prodi' => 'required|string',
@@ -83,15 +86,16 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $initials = $validated['initials'] ?: collect(explode(' ', $validated['name']))->map(fn ($part) => substr($part, 0, 1))->join('');
+        $initials = ($validated['initials'] ?? null) ?: collect(explode(' ', $validated['name']))->map(fn ($part) => substr($part, 0, 1))->join('');
 
         $user = User::create([
             'name' => $validated['name'],
             'initials' => $initials,
             'email' => $validated['email'],
-            'nim' => $validated['nim'] ? strtoupper($validated['nim']) : ('MHS'.rand(1000, 9999)),
+            'nim' => ! empty($validated['nim']) ? strtoupper($validated['nim']) : ('MHS'.rand(1000, 9999)),
             'role' => 'mahasiswa',
             'usia' => $validated['usia'],
+            'menarche_age' => $validated['menarche_age'] ?? null,
             'gender' => $validated['gender'],
             'agama' => $validated['agama'],
             'prodi' => $validated['prodi'],
@@ -119,30 +123,10 @@ class AuthController extends Controller
         return view('auth.biodata', compact('user'));
     }
 
-    public function saveBiodata(Request $request)
+    public function saveBiodata(UpdateBiodataRequest $request): RedirectResponse
     {
-        $user = Auth::user();
-
-        $validated = $request->validate([
-            'initials' => 'nullable|string|max:50',
-            'usia' => 'required|integer|min:15|max:40',
-            'gender' => 'required|in:L,P',
-            'agama' => 'required|string',
-            'prodi' => 'required|string',
-            'fakultas' => 'nullable|string',
-            'pendidikan_terakhir' => 'required|string',
-        ]);
-
-        $user->update([
-            'initials' => $validated['initials'] ?: $user->initials,
-            'usia' => $validated['usia'],
-            'gender' => $validated['gender'],
-            'agama' => $validated['agama'],
-            'prodi' => $validated['prodi'],
-            'fakultas' => $validated['fakultas'] ?? $user->fakultas,
-            'pendidikan_terakhir' => $validated['pendidikan_terakhir'],
-            'is_biodata_filled' => true,
-        ]);
+        $user = $request->user();
+        $user->update($request->completedBiodata());
 
         return redirect()->route('mahasiswa.dashboard')
             ->with('success', 'Biodata berhasil disimpan!');

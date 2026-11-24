@@ -3,7 +3,7 @@ Versi v1
 
 Membaca dan menyimpan profil sendiri
 -----------------------------------
-Gunakan host instalasi SIKERA Anda. Kedua endpoint memakai token Sanctum.
+Gunakan host instalasi SIKERA Anda. Endpoint profil dan biodata memakai token Sanctum.
 Identitas pemilik profil ditentukan oleh token.
 
 1. Masuk melalui POST /api/v1/auth/login. Untuk akun lokal, kirim JSON
@@ -12,7 +12,7 @@ Identitas pemilik profil ditentukan oleh token.
 3. Kirim formulir melalui PUT /api/v1/auth/me. Gunakan data.user pada
    respons 200 untuk memperbarui profil yang ditampilkan aplikasi.
 
-Header untuk kedua endpoint
+Header untuk membaca dan menyimpan profil atau biodata
     Accept: application/json
     Authorization: Bearer <token>
 
@@ -53,6 +53,26 @@ Setelah profil mahasiswa berhasil disimpan, is_biodata_filled bernilai true.
 ID, peran, poin, hasil evaluasi, dan identitas Google dikelola sistem.
 Aplikasi klien cukup mengirim kolom formulir yang tercantum di atas.
 
+Biodata awal dan klien mobile lama
+----------------------------------
+PUT /api/v1/auth/biodata menerima biodata mahasiswa dengan Bearer token.
+Kirim usia, gender, agama, prodi, dan pendidikan_terakhir setiap kali
+menyimpan. Anda juga dapat mengirim name, initials, nim, fakultas, dan
+menarche_age. Aturan nilai dan panjang mengikuti tabel di atas.
+
+Kolom yang dilewati mempertahankan nilainya. Pada endpoint biodata, null
+untuk initials atau fakultas juga mempertahankan nilai lama. Untuk
+mengosongkan keduanya, gunakan PUT /api/v1/auth/me. Perubahan email dan
+foto juga menggunakan endpoint /me.
+
+Untuk mencoba endpoint biodata, gunakan JSON contoh di bawah dan hapus
+email. Respons sukses berisi data.user dan pesan "Biodata berhasil
+diperbarui!". Baca kembali hasilnya melalui GET /api/v1/auth/me.
+Respons 422 memuat success bernilai false, message, dan errors.
+
+Saat membuat akun melalui POST /api/v1/auth/register, menarche_age juga
+dapat dikirim sebagai bilangan bulat 8–25 atau dilewati.
+
 Contoh permintaan mahasiswa dengan email yang sama
 --------------------------------------------------
 PUT /api/v1/auth/me
@@ -91,6 +111,15 @@ Contoh respons berhasil (200, sebagian kolom)
       "name": "Dewi Anggraini",
       "email": "dewi@example.test",
       "nim": "A123",
+      "initials": "DA",
+      "usia": 20,
+      "gender": "P",
+      "agama": "Islam",
+      "prodi": "Farmasi",
+      "fakultas": "MIPA",
+      "pendidikan_terakhir": "SMA",
+      "menarche_age": 12,
+      "avatar": null,
       "role": "mahasiswa",
       "is_biodata_filled": true
     }

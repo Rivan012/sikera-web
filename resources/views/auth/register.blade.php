@@ -240,6 +240,8 @@
                                 </div>
                             </div>
 
+                            <x-profile-input name="menarche_age" label="Usia saat haid pertama (tahun)" type="number" min="8" max="25" />
+
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="flex flex-col gap-1.5">
                                     <label for="agama" class="text-xs font-semibold text-slate-700 dark:text-slate-200">

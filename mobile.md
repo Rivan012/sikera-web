@@ -128,10 +128,10 @@ Setiap layar yang memuat data perlu menangani status memuat, data kosong, dan ga
 ## 5. Bangun alur akun
 
 1. Tampilkan form masuk dengan email dan kata sandi. Kirim ke `POST /auth/login`.
-2. Registrasi mahasiswa memakai `POST /auth/register`. Field wajib saat ini: `name`, `usia` (15 sampai 40), `gender` (`L` atau `P`), `agama`, `prodi`, `pendidikan_terakhir`, `email`, `password`, dan `password_confirmation`. `initials`, `fakultas`, dan `nim` boleh dikirim sebagai field tambahan.
+2. Registrasi mahasiswa memakai `POST /auth/register`. Field wajib saat ini: `name`, `usia` (15 sampai 40), `gender` (`L` atau `P`), `agama`, `prodi`, `pendidikan_terakhir`, `email`, `password`, dan `password_confirmation`. `initials`, `fakultas`, `nim`, dan `menarche_age` boleh dikirim sebagai field tambahan.
 3. Simpan `data.token` ke penyimpanan aman perangkat, bukan `SharedPreferences` atau file biasa.
 4. Saat aplikasi dibuka kembali, panggil `GET /auth/me` dengan Bearer token sebelum menampilkan layar terproteksi.
-5. Untuk memperbarui biodata, kirim `PUT /auth/biodata`. Backend meminta `usia`, `gender`, `agama`, `prodi`, dan `pendidikan_terakhir`; `initials` dan `fakultas` bersifat opsional.
+5. Untuk memperbarui biodata, kirim `PUT /auth/biodata`. Backend meminta `usia`, `gender`, `agama`, `prodi`, dan `pendidikan_terakhir`. Kolom `name`, `initials`, `nim`, `fakultas`, dan `menarche_age` bersifat opsional. Contoh permintaan dan respons tersedia di [panduan profil](API-Profile.txt).
 6. Saat pengguna keluar, panggil `POST /auth/logout`, lalu hapus token lokal. Jangan mencatat token atau kata sandi ke log.
 
 API menggunakan login token Sanctum. Jangan menyimpan kata sandi setelah proses masuk.

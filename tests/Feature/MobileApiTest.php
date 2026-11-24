@@ -31,6 +31,7 @@ class MobileApiTest extends TestCase
         // 1. Register Mobile
         $regResponse = $this->postJson('/api/v1/auth/register', [
             'name' => 'Dewi Anggraini',
+            'menarche_age' => 12,
             'initials' => 'DA',
             'usia' => 18,
             'gender' => 'P',
@@ -45,6 +46,7 @@ class MobileApiTest extends TestCase
         ]);
 
         $regResponse->assertStatus(201)
+            ->assertJsonPath('data.user.menarche_age', 12)
             ->assertJsonStructure([
                 'success',
                 'data' => [

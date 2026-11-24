@@ -19,17 +19,26 @@ class UpdateProfileRequest extends FormRequest
     {
         $user = $this->user();
         $googleLinked = $user->google_id !== null;
-        $biodata = $user->isMahasiswa() ? 'required' : 'nullable';
         $emailChange = ! $googleLinked && $this->filled('email') && $this->input('email') !== $user->email;
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'initials' => ['nullable', 'string', 'max:50'],
             'email' => ['bail', 'required', 'email', 'max:255', $googleLinked ? Rule::in([$user->email]) : Rule::unique('users')->ignore($user)],
             'current_password' => $emailChange ? ['bail', 'required', 'string', 'current_password'] : ['exclude'],
             'avatar' => $googleLinked ? ['missing'] : ['nullable', 'string', 'url:https', 'max:2048'],
-            'nim' => ['bail', 'nullable', 'string', 'max:50', Rule::unique('users')->ignore($user)],
-            'usia' => [$biodata, 'integer', $user->isMahasiswa() ? 'between:15,40' : 'between:10,100'],
+            ...$this->biodataRules($user->isMahasiswa()),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    protected function biodataRules(bool $student): array
+    {
+        $biodata = $student ? 'required' : 'nullable';
+
+        return [
+            'initials' => ['nullable', 'string', 'max:50'],
+            'nim' => ['bail', 'nullable', 'string', 'max:50', Rule::unique('users')->ignore($this->user())],
+            'usia' => [$biodata, 'integer', $student ? 'between:15,40' : 'between:10,100'],
             'gender' => [$biodata, Rule::in(['L', 'P'])],
             'agama' => [$biodata, 'string', 'max:255'],
             'prodi' => [$biodata, 'string', 'max:255'],

@@ -30,6 +30,50 @@ class ProfileTest extends TestCase
         $this->putJson('/api/v1/auth/me')->assertUnauthorized();
     }
 
+    public function test_first_login_form_saves_all_biodata_for_the_profile_editor(): void
+    {
+        $user = User::factory()->create(['role' => 'mahasiswa', 'pendidikan_terakhir' => 'D2']);
+        $data = $this->studentProfile($user);
+        unset($data['avatar'], $data['email']);
+
+        $form = $this->actingAs($user)->get('/biodata')->assertOk()->assertSee('value="D2"', false);
+        foreach (array_keys($data) as $field) {
+            $form->assertSee('name="'.$field.'"', false);
+        }
+
+        $this->post('/biodata', $data)->assertRedirectToRoute('mahasiswa.dashboard');
+        $this->get('/profil')->assertOk()->assertSee('value="A123"', false)->assertSee('value="MIPA"', false);
+        $this->assertDatabaseHas('users', [...$data, 'id' => $user->id, 'nim' => 'A123', 'is_biodata_filled' => true]);
+    }
+
+    public function test_mobile_biodata_saves_new_fields_and_accepts_older_clients(): void
+    {
+        $user = User::factory()->create(['role' => 'mahasiswa']);
+        $this->withToken($user->createToken('test')->plainTextToken);
+        $core = ['usia' => 19, 'gender' => 'P', 'agama' => 'Islam', 'prodi' => 'Farmasi', 'pendidikan_terakhir' => 'SMA'];
+        $this->putJson('/api/v1/auth/biodata', [
+            ...$core, 'name' => 'Dewi', 'nim' => 'a123', 'menarche_age' => 12, 'fakultas' => 'MIPA',
+            'initials' => 'DA', 'role' => 'admin', 'email' => 'other@example.test',
+        ])->assertOk()->assertJsonPath('data.user.is_biodata_filled', true);
+
+        $this->putJson('/api/v1/auth/biodata', [...$core, 'fakultas' => null, 'usia' => 20])
+            ->assertOk()->assertJsonPath('data.user.usia', 20);
+        $this->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('data.user.nim', 'A123')
+            ->assertJsonPath('data.user.menarche_age', 12)->assertJsonPath('data.user.name', 'Dewi')
+            ->assertJsonPath('data.user.fakultas', 'MIPA')->assertJsonPath('data.user.initials', 'DA')
+            ->assertJsonPath('data.user.email', $user->email)->assertJsonPath('data.user.role', 'mahasiswa');
+    }
+
+    public function test_invalid_biodata_does_not_mark_onboarding_complete(): void
+    {
+        $user = User::factory()->create(['role' => 'mahasiswa']);
+        User::factory()->create(['nim' => 'A123']);
+        $this->withToken($user->createToken('test')->plainTextToken)
+            ->putJson('/api/v1/auth/biodata', [...$this->studentProfile($user), 'menarche_age' => 30])
+            ->assertUnprocessable()->assertJsonPath('success', false)->assertJsonValidationErrors(['nim', 'menarche_age']);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'is_biodata_filled' => false, 'nim' => null]);
+    }
+
     public function test_student_can_edit_completed_profile_from_web_and_read_changes_via_api(): void
     {
         $user = User::factory()->create(['role' => 'mahasiswa', 'is_biodata_filled' => true, 'pretest_completed' => true]);

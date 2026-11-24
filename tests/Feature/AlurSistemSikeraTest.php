@@ -68,16 +68,17 @@ class AlurSistemSikeraTest extends TestCase
     public function test_pendaftaran_mahasiswa_baru_dengan_biodata_lengkap(): void
     {
         $response = $this->post('/register', [
-            'name' => 'Budi Santoso',
+            'name' => 'Bunga Santoso',
+            'menarche_age' => 13,
             'initials' => 'BS',
             'usia' => 19,
-            'gender' => 'L',
+            'gender' => 'P',
             'agama' => 'Islam',
             'prodi' => 'Informatika',
             'fakultas' => 'Fakultas Teknik (FT)',
             'pendidikan_terakhir' => 'SMA/SMK/MA/Sederajat',
             'nim' => 'G1A026099',
-            'email' => 'budi@unib.ac.id',
+            'email' => 'bunga@unib.ac.id',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -85,6 +86,7 @@ class AlurSistemSikeraTest extends TestCase
         $this->assertAuthenticated();
         $user = auth()->user();
         $this->assertEquals('mahasiswa', $user->role);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'menarche_age' => 13]);
         $this->assertTrue($user->is_biodata_filled);
         $this->assertFalse($user->pretest_completed);
 

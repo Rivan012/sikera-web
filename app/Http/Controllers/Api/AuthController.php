@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateBiodataRequest;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'initials' => 'nullable|string|max:50',
             'usia' => 'required|integer|min:15|max:40',
+            'menarche_age' => 'nullable|integer|between:8,25',
             'gender' => 'required|in:L,P',
             'agama' => 'required|string',
             'prodi' => 'required|string',
@@ -52,6 +54,7 @@ class AuthController extends Controller
             'nim' => $request->nim ? strtoupper($request->nim) : ('MHS'.rand(1000, 9999)),
             'role' => 'mahasiswa',
             'usia' => $request->usia,
+            'menarche_age' => $validator->validated()['menarche_age'] ?? null,
             'gender' => $request->gender,
             'agama' => $request->agama,
             'prodi' => $request->prodi,
@@ -262,38 +265,10 @@ class AuthController extends Controller
     /**
      * Perbarui Biodata Mahasiswa
      */
-    public function updateBiodata(Request $request)
+    public function updateBiodata(UpdateBiodataRequest $request): JsonResponse
     {
         $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'initials' => 'nullable|string|max:50',
-            'usia' => 'required|integer|min:15|max:40',
-            'gender' => 'required|in:L,P',
-            'agama' => 'required|string',
-            'prodi' => 'required|string',
-            'fakultas' => 'nullable|string',
-            'pendidikan_terakhir' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data biodata tidak valid.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $user->update([
-            'initials' => $request->initials ?: $user->initials,
-            'usia' => $request->usia,
-            'gender' => $request->gender,
-            'agama' => $request->agama,
-            'prodi' => $request->prodi,
-            'fakultas' => $request->fakultas ?? $user->fakultas,
-            'pendidikan_terakhir' => $request->pendidikan_terakhir,
-            'is_biodata_filled' => true,
-        ]);
+        $user->update($request->completedBiodata());
 
         return response()->json([
             'success' => true,
