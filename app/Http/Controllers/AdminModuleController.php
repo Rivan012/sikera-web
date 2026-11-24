@@ -2,14 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreModuleRequest;
+use App\Http\Requests\StoreModuleTopicRequest;
+use App\Http\Requests\UpdateModuleTopicRequest;
 use App\Models\EducationalModule;
 use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
 use App\Services\ModuleBannerService;
 use App\Services\ModuleExcelImportService;
+use App\Services\ModuleTopicPdfService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class AdminModuleController extends Controller
 {
@@ -20,7 +29,7 @@ class AdminModuleController extends Controller
         }
     }
 
-    public function index()
+    public function index(): View
     {
         $this->authorizeAdmin();
 
@@ -28,28 +37,20 @@ class AdminModuleController extends Controller
             ->orderBy('module_number')
             ->get();
 
-        return view('admin.modules.index', compact('modules'));
+        $totalTopics = $modules->sum(fn (EducationalModule $m): int => $m->topics->count());
+        $pdfTopicsCount = $modules->sum(
+            fn (EducationalModule $m): int => $m->topics->filter(fn (ModuleTopic $t): bool => $t->hasPdf())->count()
+        );
+
+        return view('admin.modules.index', compact('modules', 'totalTopics', 'pdfTopicsCount'));
     }
 
-    public function store(Request $request, ModuleBannerService $bannerService)
-    {
-        $this->authorizeAdmin();
-
-        $validated = $request->validate([
-            'module_number' => 'required|integer|unique:educational_modules,module_number',
-            'title' => 'required|string|max:255',
-            'subtitle' => 'nullable|string|max:255',
-            'description' => 'required|string',
-            'banner_mode' => 'nullable|string|in:auto,upload,url',
-            'banner_image' => 'nullable|string|max:500',
-            'banner_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
-            'banner_theme' => 'nullable|string|in:teal,amber,rose,indigo,emerald,purple',
-            'estimated_time' => 'required|string',
-            'topic_title' => 'required|string|max:255',
-            'topic_code' => 'required|string|max:10',
-            'youtube_video_id' => 'nullable|string',
-            'content_html' => 'required|string',
-        ]);
+    public function store(
+        StoreModuleRequest $request,
+        ModuleBannerService $bannerService,
+        ModuleTopicPdfService $pdfService
+    ): RedirectResponse {
+        $validated = $request->validated();
 
         $bannerPath = $bannerService->handleBanner(
             moduleNumber: (int) $validated['module_number'],
@@ -61,32 +62,44 @@ class AdminModuleController extends Controller
             colorTheme: $request->input('banner_theme', 'teal')
         );
 
-        $module = EducationalModule::create([
-            'module_number' => $validated['module_number'],
-            'title' => $validated['title'],
-            'subtitle' => $validated['subtitle'] ?? null,
-            'description' => $validated['description'],
-            'banner_image' => $bannerPath,
-            'estimated_time' => $validated['estimated_time'],
-        ]);
+        $pdfData = $pdfService->store($request->file('pdf_file'));
 
-        ModuleTopic::create([
-            'educational_module_id' => $module->id,
-            'topic_code' => $validated['topic_code'],
-            'title' => $validated['topic_title'],
-            'youtube_video_id' => $validated['youtube_video_id'] ?? null,
-            'content_html' => $validated['content_html'],
-            'order_index' => 1,
-        ]);
+        try {
+            $module = DB::transaction(function () use ($validated, $bannerPath, $pdfData): EducationalModule {
+                $module = EducationalModule::create([
+                    'module_number' => $validated['module_number'],
+                    'title' => $validated['title'],
+                    'subtitle' => $validated['subtitle'] ?? null,
+                    'description' => $validated['description'],
+                    'banner_image' => $bannerPath,
+                    'estimated_time' => $validated['estimated_time'],
+                ]);
+
+                ModuleTopic::create([
+                    'educational_module_id' => $module->id,
+                    'topic_code' => $validated['topic_code'],
+                    'title' => $validated['topic_title'],
+                    'youtube_video_id' => $validated['youtube_video_id'] ?? null,
+                    'content_html' => null,
+                    'pdf_path' => $pdfData['pdf_path'],
+                    'pdf_original_name' => $pdfData['pdf_original_name'],
+                    'pdf_size' => $pdfData['pdf_size'],
+                    'order_index' => 1,
+                ]);
+
+                return $module;
+            });
+        } catch (Throwable $e) {
+            $pdfService->delete($pdfData['pdf_path']);
+
+            throw $e;
+        }
 
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Modul edukasi #'.$module->module_number.' ("'.$module->title.'") berhasil diunggah dengan banner!');
+            ->with('success', 'Modul #'.$module->module_number.' ("'.$module->title.'") dan PDF subbab pertama berhasil dipublikasikan.');
     }
 
-    /**
-     * Memperbarui banner modul yang sudah ada
-     */
-    public function updateBanner(Request $request, $id, ModuleBannerService $bannerService)
+    public function updateBanner(Request $request, int $id, ModuleBannerService $bannerService): RedirectResponse
     {
         $this->authorizeAdmin();
 
@@ -112,12 +125,9 @@ class AdminModuleController extends Controller
         $module->update(['banner_image' => $bannerPath]);
 
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Banner Modul #'.$module->module_number.' berhasil diperbarui!');
+            ->with('success', 'Banner Modul #'.$module->module_number.' berhasil diperbarui.');
     }
 
-    /**
-     * Preview banner SVG secara instan
-     */
     public function previewBannerSvg(Request $request, ModuleBannerService $bannerService): Response
     {
         $this->authorizeAdmin();
@@ -135,66 +145,113 @@ class AdminModuleController extends Controller
         ]);
     }
 
-    public function storeTopic(Request $request, $moduleId)
-    {
-        $this->authorizeAdmin();
-
+    public function storeTopic(
+        StoreModuleTopicRequest $request,
+        int $moduleId,
+        ModuleTopicPdfService $pdfService
+    ): RedirectResponse {
         $module = EducationalModule::findOrFail($moduleId);
+        $validated = $request->validated();
 
-        $validated = $request->validate([
-            'topic_code' => 'required|string|max:10',
-            'title' => 'required|string|max:255',
-            'youtube_video_id' => 'nullable|string',
-            'content_html' => 'required|string',
-        ]);
+        $pdfData = $pdfService->store($request->file('pdf_file'));
+        $orderIndex = ((int) $module->topics()->max('order_index')) + 1;
 
-        $orderIndex = $module->topics()->count() + 1;
+        try {
+            ModuleTopic::create([
+                'educational_module_id' => $module->id,
+                'topic_code' => $validated['topic_code'],
+                'title' => $validated['title'],
+                'youtube_video_id' => $validated['youtube_video_id'] ?? null,
+                'content_html' => null,
+                'pdf_path' => $pdfData['pdf_path'],
+                'pdf_original_name' => $pdfData['pdf_original_name'],
+                'pdf_size' => $pdfData['pdf_size'],
+                'order_index' => $orderIndex,
+            ]);
+        } catch (Throwable $e) {
+            $pdfService->delete($pdfData['pdf_path']);
 
-        ModuleTopic::create([
-            'educational_module_id' => $module->id,
+            throw $e;
+        }
+
+        return redirect()->route('admin.modules.index')
+            ->with('success', 'Subbab '.$validated['topic_code'].' (PDF flipbook) berhasil ditambahkan ke Modul '.$module->module_number.'.');
+    }
+
+    public function updateTopic(
+        UpdateModuleTopicRequest $request,
+        int $id,
+        ModuleTopicPdfService $pdfService
+    ): RedirectResponse {
+        $topic = ModuleTopic::findOrFail($id);
+        $validated = $request->validated();
+
+        $attributes = [
             'topic_code' => $validated['topic_code'],
             'title' => $validated['title'],
             'youtube_video_id' => $validated['youtube_video_id'] ?? null,
-            'content_html' => $validated['content_html'],
-            'order_index' => $orderIndex,
-        ]);
+        ];
+
+        $newPdfPath = null;
+        if ($request->hasFile('pdf_file')) {
+            $pdfData = $pdfService->store($request->file('pdf_file'), $topic->pdf_path);
+            $newPdfPath = $pdfData['pdf_path'];
+            $attributes = array_merge($attributes, $pdfData);
+        }
+
+        try {
+            $topic->update($attributes);
+        } catch (Throwable $e) {
+            if ($newPdfPath !== null) {
+                $pdfService->delete($newPdfPath);
+            }
+
+            throw $e;
+        }
+
+        $suffix = $newPdfPath !== null ? ' beserta berkas PDF flipbook baru' : '';
 
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Submateri '.$validated['topic_code'].' berhasil ditambahkan ke Modul '.$module->module_number.'!');
+            ->with('success', 'Subbab '.$topic->topic_code.' ("'.$topic->title.'")'.$suffix.' berhasil diperbarui.');
     }
 
-    public function destroy($id)
+    public function destroy(int $id, ModuleTopicPdfService $pdfService): RedirectResponse
     {
         $this->authorizeAdmin();
 
-        $module = EducationalModule::findOrFail($id);
+        $module = EducationalModule::with('topics:id,educational_module_id,pdf_path')->findOrFail($id);
         $moduleNumber = $module->module_number;
         $title = $module->title;
+        $pdfPaths = $module->topics->pluck('pdf_path')->filter()->all();
 
-        // Bersihkan soal kuesioner terkait modul ini jika ada
         TestQuestion::where('module_target', $moduleNumber)->delete();
-
-        // Hapus modul (module_topics dan module_progress otomatis terhapus via foreign key cascade)
         $module->delete();
 
+        foreach ($pdfPaths as $path) {
+            $pdfService->delete($path);
+        }
+
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Modul #'.$moduleNumber.' ("'.$title.'") beserta seluruh submaterinya berhasil dihapus.');
+            ->with('success', 'Modul #'.$moduleNumber.' ("'.$title.'") beserta seluruh subbabnya berhasil dihapus.');
     }
 
-    public function destroyTopic($id)
+    public function destroyTopic(int $id, ModuleTopicPdfService $pdfService): RedirectResponse
     {
         $this->authorizeAdmin();
 
         $topic = ModuleTopic::findOrFail($id);
         $title = $topic->title;
         $topicCode = $topic->topic_code;
+        $pdfPath = $topic->pdf_path;
+
         $topic->delete();
+        $pdfService->delete($pdfPath);
 
         return redirect()->route('admin.modules.index')
-            ->with('success', 'Submateri '.$topicCode.' ("'.$title.'") berhasil dihapus.');
+            ->with('success', 'Subbab '.$topicCode.' ("'.$title.'") berhasil dihapus.');
     }
 
-    public function downloadTemplate()
+    public function downloadTemplate(): BinaryFileResponse
     {
         $this->authorizeAdmin();
 
@@ -209,7 +266,7 @@ class AdminModuleController extends Controller
         ]);
     }
 
-    public function importExcel(Request $request, ModuleExcelImportService $importService)
+    public function importExcel(Request $request, ModuleExcelImportService $importService): RedirectResponse
     {
         $this->authorizeAdmin();
 
@@ -227,12 +284,12 @@ class AdminModuleController extends Controller
             $overwrite = $request->has('overwrite') ? (bool) $request->input('overwrite') : true;
             $result = $importService->import($request->file('excel_file')->getRealPath(), $overwrite);
 
-            $msg = "Berhasil mengimpor file Excel! {$result['modules_created']} modul baru dibuat, {$result['modules_updated']} diperbarui, ".
-                ($result['topics_created'] + $result['topics_updated']).' submateri, dan '.
+            $msg = "Berhasil mengimpor file Excel. {$result['modules_created']} modul baru dibuat, {$result['modules_updated']} diperbarui, ".
+                ($result['topics_created'] + $result['topics_updated']).' subbab, dan '.
                 ($result['questions_created'] + $result['questions_updated']).' butir soal kuesioner berhasil disinkronkan.';
 
             return redirect()->route('admin.modules.index')->with('success', $msg);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return redirect()->route('admin.modules.index')
                 ->withErrors(['error' => 'Gagal mengimpor file Excel: '.$e->getMessage()]);
         }

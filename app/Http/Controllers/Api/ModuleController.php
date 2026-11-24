@@ -11,6 +11,7 @@ use App\Models\TestQuestion;
 use App\Services\GoogleSheetsSyncService;
 use App\Services\ModuleBannerService;
 use App\Services\ModuleExcelImportService;
+use App\Services\ModuleTopicPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -97,12 +98,16 @@ class ModuleController extends Controller
             ->pluck('module_topic_id')
             ->toArray();
 
-        $topics = $module->topics->map(function ($tp) use ($completedTopicIds, $hasPretest) {
+        $topics = $module->topics->map(function ($tp) use ($completedTopicIds, $hasPretest, $module) {
             return [
                 'id' => $tp->id,
                 'topic_code' => $tp->topic_code,
                 'title' => $tp->title,
                 'has_video' => (bool) $tp->youtube_video_id,
+                'has_pdf' => $tp->hasPdf(),
+                'pdf_url' => $tp->hasPdf() ? url("/api/v1/modules/{$module->id}/topic/{$tp->id}/pdf") : null,
+                'pdf_original_name' => $tp->pdf_original_name,
+                'pdf_size' => $tp->pdf_size,
                 'is_completed' => in_array($tp->id, $completedTopicIds),
                 'is_locked' => ! $hasPretest,
             ];
@@ -306,6 +311,11 @@ class ModuleController extends Controller
                     'id' => $topic->id,
                     'topic_code' => $topic->topic_code,
                     'title' => $topic->title,
+                    'format' => $topic->hasPdf() ? 'pdf_flipbook' : 'html',
+                    'has_pdf' => $topic->hasPdf(),
+                    'pdf_url' => $topic->hasPdf() ? url("/api/v1/modules/{$module->id}/topic/{$topic->id}/pdf") : null,
+                    'pdf_original_name' => $topic->pdf_original_name,
+                    'pdf_size' => $topic->pdf_size,
                     'youtube_video_id' => $topic->youtube_video_id,
                     'youtube_embed_url' => $topic->youtube_video_id ? "https://www.youtube.com/embed/{$topic->youtube_video_id}" : null,
                     'content_html' => $topic->content_html,
@@ -322,6 +332,48 @@ class ModuleController extends Controller
                 'ready_for_posttest' => $allTopicsCompleted,
             ],
         ]);
+    }
+
+    /**
+     * Streaming Berkas PDF Submateri (Flipbook Mobile / Web)
+     */
+    public function streamTopicPdf(
+        Request $request,
+        int $moduleId,
+        int $topicId,
+        ModuleTopicPdfService $pdfService
+    ) {
+        $user = $request->user();
+        $module = EducationalModule::findOrFail($moduleId);
+        $topic = ModuleTopic::where('educational_module_id', $moduleId)->findOrFail($topicId);
+
+        if ($user->isMahasiswa()) {
+            $hasPretest = EvaluationResponse::where('user_id', $user->id)
+                ->where('type', 'pre_test')
+                ->where(function ($q) use ($module): void {
+                    $q->where('module_number', $module->module_number)
+                        ->orWhereNull('module_number');
+                })
+                ->exists();
+
+            if (! $hasPretest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Materi terkunci! Silakan selesaikan Pre-Test Modul '.$module->module_number.' terlebih dahulu.',
+                    'requires_pretest' => true,
+                    'module_id' => $module->id,
+                ], 403);
+            }
+        }
+
+        if (! $pdfService->exists($topic->pdf_path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Berkas PDF subbab belum tersedia.',
+            ], 404);
+        }
+
+        return $pdfService->streamResponse($topic, allowCors: true);
     }
 
     /**
@@ -462,7 +514,7 @@ class ModuleController extends Controller
     /**
      * Hapus Modul Edukasi (Khusus Admin)
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $id, ModuleTopicPdfService $pdfService)
     {
         $user = $request->user();
 
@@ -473,7 +525,7 @@ class ModuleController extends Controller
             ], 403);
         }
 
-        $module = EducationalModule::find($id);
+        $module = EducationalModule::with('topics:id,educational_module_id,pdf_path')->find($id);
 
         if (! $module) {
             return response()->json([
@@ -484,12 +536,17 @@ class ModuleController extends Controller
 
         $moduleNumber = $module->module_number;
         $title = $module->title;
+        $pdfPaths = $module->topics->pluck('pdf_path')->filter()->all();
 
         // Bersihkan soal kuesioner terkait modul ini
         TestQuestion::where('module_target', $moduleNumber)->delete();
 
         // Hapus modul (module_topics dan module_progress otomatis terhapus via foreign key cascade)
         $module->delete();
+
+        foreach ($pdfPaths as $path) {
+            $pdfService->delete($path);
+        }
 
         return response()->json([
             'success' => true,

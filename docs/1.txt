@@ -1,0 +1,137 @@
+DOKUMEN PERUBAHAN #1
+Tanggal      : 2026-11-24
+Judul        : Perubahan Format Subbab Materi menjadi Unggah PDF & Flipbook Interaktif
+Branch       : main
+
+================================================================================
+1. RINGKASAN PERUBAHAN
+================================================================================
+Format materi subbab (module_topics) pada SIKERA diubah dari input teks HTML
+menjadi unggah berkas PDF wajib, sementara modul (educational_modules) tetap
+berfungsi sebagai wadah kurikulum (judul, subjudul, deskripsi, estimasi waktu,
+dan banner). Berkas PDF subbab yang diunggah disimpan pada penyimpanan privat
+server dan ditampilkan kepada mahasiswa dalam bentuk pembaca Flipbook PDF
+interaktif (mode 1 halaman dan 2 halaman buku terbuka) yang dibangun secara
+lokal menggunakan pdfjs-dist dan page-flip melalui Vite.
+
+Video YouTube opsional pada subbab tetap dipertahankan sebagai materi
+pendamping, dan data subbab lama yang belum memiliki PDF tetap menampilkan
+fallback konten HTML secara aman.
+
+================================================================================
+2. PERUBAHAN BASIS DATA & PENYIMPANAN
+================================================================================
+- Migrasi baru:
+  database/migrations/2026_11_24_032918_add_pdf_fields_to_module_topics_table.php
+  * Mengubah kolom `content_html` pada `module_topics` menjadi nullable.
+  * Menambahkan kolom `pdf_path` (string, nullable).
+  * Menambahkan kolom `pdf_original_name` (string, nullable).
+  * Menambahkan kolom `pdf_size` (unsignedBigInteger, nullable).
+
+- Penyimpanan PDF Privat:
+  app/Services/ModuleTopicPdfService.php
+  * Menyimpan berkas PDF ke disk `local` pada direktori `module-topics`
+    (storage/app/private/module-topics).
+  * Menghapus otomatis berkas PDF lama saat subbab diperbarui dengan PDF baru,
+    saat subbab dihapus, maupun saat seluruh modul dihapus.
+  * Menyajikan streaming PDF inline (Content-Type: application/pdf,
+    Content-Disposition: inline, X-Content-Type-Options: nosniff, dukungan HTTP
+    Range) agar proteksi Pre-Test gating tetap berjalan.
+
+================================================================================
+3. MODEL, VALIDASI, CONTROLLER, & RUTE
+================================================================================
+- Model:
+  * app/Models/ModuleTopic.php: penambahan atribut fillable PDF, casts integer,
+    serta helper hasPdf() dan formattedPdfSize().
+  * app/Models/EducationalModule.php: penegasan tipe relasi HasMany.
+
+- Form Request:
+  * app/Http/Requests/StoreModuleRequest.php: validasi pembuatan modul + PDF
+    wajib subbab pertama (maks. 20 MB, .pdf, MIME application/pdf) dan
+    ekstraksi otomatis ID video YouTube jika ditempel sebagai URL penuh.
+  * app/Http/Requests/StoreModuleTopicRequest.php: validasi tambah subbab baru
+    dengan unggah PDF wajib.
+  * app/Http/Requests/UpdateModuleTopicRequest.php: validasi ubah detail subbab
+    dan ganti/unggah PDF opsional.
+
+- Controller & Service:
+  * app/Http/Controllers/AdminModuleController.php: mendukung unggah PDF saat
+    membuat modul/subbab, aksi baru updateTopic() untuk mengubah atau mengganti
+    PDF subbab, serta pembersihan berkas PDF saat hapus subbab/modul.
+  * app/Http/Controllers/EducationalModuleController.php: optimasi eager load
+    topik pada katalog, pemuatan URL PDF untuk flipbook di showTopic(), serta
+    endpoint baru streamTopicPdf() dengan proteksi Pre-Test mahasiswa.
+  * app/Http/Controllers/Api/ModuleController.php: menambahkan properti
+    has_pdf, pdf_url, pdf_original_name, pdf_size, format ("pdf_flipbook" /
+    "html") pada respons JSON, endpoint GET /api/v1/modules/{id}/topic/{topicId}/pdf
+    dengan proteksi Pre-Test dan CORS, serta pembersihan file PDF saat destroy().
+  * app/Http/Controllers/LandingController.php: menambahkan penanda has_pdf pada
+    daftar topik.
+  * app/Services/ModuleExcelImportService.php: mendukung content_html bernilai
+    null saat impor Excel.
+
+- Rute Baru:
+  * Web:
+    - GET  /modules/{moduleId}/topic/{topicId}/pdf (modules.topic.pdf)
+    - PUT  /admin/topics/{id}                      (admin.topics.update)
+  * API (auth:sanctum):
+    - GET  /api/v1/modules/{id}/topic/{topicId}/pdf
+
+================================================================================
+4. ANTARMUKA ADMIN, MAHASISWA, & FLIPBOOK PDF
+================================================================================
+- Dependensi Frontend (package.json):
+  * pdfjs-dist (^6.5.438)
+  * page-flip  (^2.0.7)
+
+- Bundel Vite & Styling:
+  * vite.config.js: entry point terpisah resources/js/flipbook.js (hanya dimuat
+    di halaman baca subbab yang memiliki berkas PDF).
+  * resources/js/flipbook.js: mesin pembaca PDF Flipbook dengan fitur:
+    - Render halaman PDF resolusi tinggi via Web Worker lokal pdfjs-dist.
+    - Pembalikan halaman realistis via StPageFlip (mode 2 halaman buku terbuka
+      di desktop dan 1 halaman di mobile, dengan tombol tukar mode).
+    - Kontrol zoom 75% hingga 200% + reset 100%.
+    - Panel thumbnail "Daftar Halaman" dengan penanda aktif spread.
+    - Input lompat halaman, slider progres, mode layar penuh, tombol "Buka PDF",
+      serta pintasan keyboard (ArrowLeft, ArrowRight, PageUp, PageDown, Home, End).
+    - State loading, error (dengan tombol muat ulang & buka langsung), dan
+      dukungan penuh prefers-reduced-motion.
+  * resources/css/app.css: gaya lembar buku flipbook, lipatan tengah halaman,
+    dan mode layar penuh pada tema terang maupun gelap.
+
+- Blade Views:
+  * resources/views/admin/modules/index.blade.php: form unggah PDF untuk modul
+    baru & tambah subbab, daftar status PDF Flipbook vs HTML Lama, serta modal
+    Ubah / Ganti PDF dan modal konfirmasi hapus subbab/modul.
+  * resources/views/modules/topic.blade.php: halaman pembaca Flipbook PDF,
+    pindah cepat antar subbab, fallback HTML lama, dan video YouTube opsional.
+  * resources/views/modules/show.blade.php: daftar subbab dengan penanda
+    Flipbook PDF & ukuran berkas, tata letak judul bersih di bawah banner SVG.
+  * resources/views/modules/index.blade.php: katalog modul dengan ringkasan
+    jumlah Flipbook PDF dan progres belajar.
+
+================================================================================
+5. PENGUJIAN & VERIFIKASI
+================================================================================
+- Feature Test Baru: tests/Feature/ModulePdfFlipbookTest.php (8 kasus uji:
+  unggah modul+PDF, validasi file kosong/bukan PDF, tambah & ganti PDF dengan
+  pembersihan berkas lama, otorisasi mahasiswa ditolak 403, hapus berkas saat
+  delete subbab/modul, Pre-Test gating web & stream PDF, fallback HTML lama,
+  serta metadata & streaming PDF REST API).
+- Pembaruan Test: tests/Feature/AdminModuleCrudTest.php disesuaikan untuk
+  mengirim berkas PDF pada 3 skenario pembuatan modul dengan banner.
+- Hasil Pengujian:
+  * PHPUnit (50 tes, 296 assertion): LULUS (diverifikasi pada SQLite sementara).
+  * Laravel Pint (vendor/bin/pint --dirty): LULUS.
+  * Vite Production Build (npm run build): LULUS.
+  * Uji klik peramban (desktop 1280x900, mobile 375x812, mode terang & gelap):
+    LULUS tanpa console error dan tanpa overflow horizontal.
+
+================================================================================
+6. CATATAN DEPLOYMENT / LOKAL
+================================================================================
+Jalankan perintah berikut pada lingkungan dengan layanan MySQL aktif:
+  php artisan migrate
+  npm run build

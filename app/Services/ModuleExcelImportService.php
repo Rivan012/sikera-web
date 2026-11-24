@@ -302,7 +302,7 @@ class ModuleExcelImportService
                         'order_index' => is_numeric($r[2] ?? null) ? (int) $r[2] : 1,
                         'title' => $title,
                         'youtube_video_id' => $videoId,
-                        'content_html' => trim($r[5] ?? ''),
+                        'content_html' => trim($r[5] ?? '') !== '' ? trim($r[5]) : null,
                     ];
                 }
             } elseif (str_contains($lower, 'soal') || str_contains($lower, 'kuesioner')) {

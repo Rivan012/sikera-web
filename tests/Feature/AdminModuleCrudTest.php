@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminModuleCrudTest extends TestCase
@@ -270,8 +271,16 @@ class AdminModuleCrudTest extends TestCase
         $response->assertStatus(403);
     }
 
+    private function fakePdfFile(string $name = 'materi-banner.pdf'): UploadedFile
+    {
+        $minimalPdf = "%PDF-1.4\n1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] >>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<< /Size 4 /Root 1 0 R >>\nstartxref\n190\n%%EOF";
+
+        return UploadedFile::fake()->createWithContent($name, $minimalPdf);
+    }
+
     public function test_superadmin_dapat_membuat_modul_dengan_upload_banner_file(): void
     {
+        Storage::fake('local');
         $fakeBanner = UploadedFile::fake()->image('custom_banner.png', 800, 320);
 
         $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
@@ -284,7 +293,7 @@ class AdminModuleCrudTest extends TestCase
             'estimated_time' => '10 Menit',
             'topic_title' => 'Submateri Banner Upload',
             'topic_code' => '777.1',
-            'content_html' => '<p>Konten uji banner upload</p>',
+            'pdf_file' => $this->fakePdfFile('banner-upload.pdf'),
         ]);
 
         $response->assertRedirect(route('admin.modules.index'));
@@ -302,6 +311,7 @@ class AdminModuleCrudTest extends TestCase
 
     public function test_superadmin_dapat_membuat_modul_dengan_url_path_banner_gambar(): void
     {
+        Storage::fake('local');
         $bannerUrl = 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800';
 
         $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
@@ -314,7 +324,7 @@ class AdminModuleCrudTest extends TestCase
             'estimated_time' => '15 Menit',
             'topic_title' => 'Submateri Banner URL',
             'topic_code' => '778.1',
-            'content_html' => '<p>Konten uji banner URL</p>',
+            'pdf_file' => $this->fakePdfFile('banner-url.pdf'),
         ]);
 
         $response->assertRedirect(route('admin.modules.index'));
@@ -328,6 +338,8 @@ class AdminModuleCrudTest extends TestCase
 
     public function test_superadmin_dapat_membuat_modul_dengan_auto_generated_banner(): void
     {
+        Storage::fake('local');
+
         $response = $this->actingAs($this->admin)->post(route('admin.modules.store'), [
             'module_number' => 779,
             'title' => 'Modul Uji Banner Auto Generasi',
@@ -338,7 +350,7 @@ class AdminModuleCrudTest extends TestCase
             'estimated_time' => '20 Menit',
             'topic_title' => 'Submateri Auto Banner',
             'topic_code' => '779.1',
-            'content_html' => '<p>Konten uji auto banner</p>',
+            'pdf_file' => $this->fakePdfFile('banner-auto.pdf'),
         ]);
 
         $response->assertRedirect(route('admin.modules.index'));

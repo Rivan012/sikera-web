@@ -65,6 +65,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/pretest', [ModuleController::class, 'getPretestQuestions']);
             Route::post('/{id}/pretest', [ModuleController::class, 'submitPretest']);
             Route::get('/{id}/topic/{topicId}', [ModuleController::class, 'readTopic']);
+            Route::get('/{id}/topic/{topicId}/pdf', [ModuleController::class, 'streamTopicPdf']);
             Route::get('/{id}/posttest', [ModuleController::class, 'getPosttestQuestions']);
             Route::post('/{id}/posttest', [ModuleController::class, 'submitPosttest']);
             Route::delete('/{id}', [ModuleController::class, 'destroy']);

@@ -23,7 +23,7 @@ class LandingController extends Controller
         try {
             $moduleModels = EducationalModule::query()
                 ->select(['id', 'module_number', 'title', 'subtitle', 'description', 'estimated_time'])
-                ->with(['topics:id,educational_module_id,topic_code,title,order_index,youtube_video_id'])
+                ->with(['topics:id,educational_module_id,topic_code,title,order_index,youtube_video_id,pdf_path'])
                 ->orderBy('module_number')
                 ->get();
 
@@ -34,6 +34,7 @@ class LandingController extends Controller
                         'code' => (string) $topic->topic_code,
                         'title' => $this->sanitizeCopy($topic->title),
                         'has_video' => filled($topic->youtube_video_id),
+                        'has_pdf' => $topic->hasPdf(),
                     ];
                 }
 

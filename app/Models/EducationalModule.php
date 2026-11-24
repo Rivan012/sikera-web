@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EducationalModule extends Model
 {
@@ -16,7 +17,10 @@ class EducationalModule extends Model
         'estimated_time',
     ];
 
-    public function topics()
+    /**
+     * @return HasMany<ModuleTopic, $this>
+     */
+    public function topics(): HasMany
     {
         return $this->hasMany(ModuleTopic::class)->orderBy('order_index');
     }

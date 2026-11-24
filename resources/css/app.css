@@ -830,3 +830,80 @@ span.flatpickr-weekday,
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
 }
+
+/* SIKERA PDF Flipbook Stage */
+.sikera-flipbook-root:fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--color-parchment);
+  overflow-y: auto;
+}
+
+.dark .sikera-flipbook-root:fullscreen {
+  background-color: #0f172a;
+}
+
+.sikera-flipbook-host {
+  margin: 0 auto;
+}
+
+.sikera-flip-page {
+  background-color: #ffffff;
+  border: 1px solid #d6d0c4;
+  overflow: hidden;
+  user-select: none;
+}
+
+.sikera-flip-page.--left {
+  border-right: 1px solid #cbd5e1;
+  box-shadow: inset -14px 0 22px -14px rgba(15, 23, 42, 0.22);
+}
+
+.sikera-flip-page.--right {
+  border-left: 1px solid #cbd5e1;
+  box-shadow: inset 14px 0 22px -14px rgba(15, 23, 42, 0.22);
+}
+
+.sikera-flip-page-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+}
+
+.sikera-flip-page-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.sikera-flip-page-placeholder {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  text-align: center;
+  padding: 1rem;
+}
+
+.sikera-flip-page-number {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.75rem;
+  border-radius: 0.25rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.sikera-flip-page.--left .sikera-flip-page-number {
+  right: auto;
+  left: 0.75rem;
+}

@@ -80,7 +80,7 @@ Route::middleware('auth')->group(function () {
     // Mahasiswa Menu Utama (Fitur Edukasi & Pemantauan)
     Route::get('/mahasiswa/dashboard', [MahasiswaDashboardController::class, 'index'])->name('mahasiswa.dashboard');
 
-    // I1: Modul Edukasi & Video YouTube (Per-Module Pre-Test & Post-Test)
+    // I1: Modul Edukasi Flipbook PDF & Video YouTube (Per-Module Pre-Test & Post-Test)
     Route::get('/modules', [EducationalModuleController::class, 'index'])->name('modules.index');
     Route::get('/modules/{id}', [EducationalModuleController::class, 'show'])->name('modules.show');
     Route::get('/modules/{id}/pretest', [EvaluationController::class, 'showModulePretest'])->name('modules.pretest.show');
@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/modules/{id}/posttest', [EvaluationController::class, 'showModulePosttest'])->name('modules.posttest.show');
     Route::post('/modules/{id}/posttest', [EvaluationController::class, 'submitModulePosttest'])->name('modules.posttest.submit');
     Route::get('/modules/{moduleId}/topic/{topicId}', [EducationalModuleController::class, 'showTopic'])->name('modules.topic');
+    Route::get('/modules/{moduleId}/topic/{topicId}/pdf', [EducationalModuleController::class, 'streamTopicPdf'])->name('modules.topic.pdf');
 
     // I2: Projek Visual Poster (Kaspro / KesproFeed)
     Route::get('/posters', [PosterController::class, 'index'])->name('posters.index');
@@ -140,6 +141,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/modules', [AdminModuleController::class, 'store'])->name('admin.modules.store');
     Route::post('/admin/modules/{id}/banner', [AdminModuleController::class, 'updateBanner'])->name('admin.modules.banner.update');
     Route::post('/admin/modules/{id}/topics', [AdminModuleController::class, 'storeTopic'])->name('admin.modules.topics.store');
+    Route::put('/admin/topics/{id}', [AdminModuleController::class, 'updateTopic'])->name('admin.topics.update');
     Route::delete('/admin/modules/{id}', [AdminModuleController::class, 'destroy'])->name('admin.modules.destroy');
     Route::delete('/admin/topics/{id}', [AdminModuleController::class, 'destroyTopic'])->name('admin.topics.destroy');
 
