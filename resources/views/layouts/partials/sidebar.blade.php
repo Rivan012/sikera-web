@@ -26,7 +26,7 @@
             </span>
             <span class="logo flex flex-col" :class="sidebarToggle ? 'lg:hidden' : ''">
                 <span class="text-base font-bold leading-tight tracking-tight text-slate-900 dark:text-white">SIKERA</span>
-                <span class="text-[11px] font-medium text-slate-600 dark:text-slate-300">Universitas Bengkulu</span>
+                <span class="text-[11px] font-medium text-slate-600 dark:text-slate-300">Sistem Informasi Kesehatan Remaja</span>
             </span>
         </a>
 

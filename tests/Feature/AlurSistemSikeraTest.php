@@ -6,6 +6,7 @@ use App\Models\EducationalModule;
 use App\Models\TestQuestion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class AlurSistemSikeraTest extends TestCase
@@ -65,8 +66,17 @@ class AlurSistemSikeraTest extends TestCase
         $adminResponse->assertRedirect(route('admin.dashboard'));
     }
 
-    public function test_pendaftaran_mahasiswa_baru_dengan_biodata_lengkap(): void
+    #[TestWith(['UINFAS - Fakultas Tarbiyah dan Tadris'])]
+    #[TestWith(['DEHASEN - Fakultas Hukum'])]
+    #[TestWith(['Fakultas Hukum (FH)'])]
+    #[TestWith([null])]
+    public function test_pendaftaran_mahasiswa_baru_dengan_biodata_lengkap(?string $fakultas): void
     {
+        $form = $this->get(route('register'))->assertOk();
+        if ($fakultas !== null) {
+            $form->assertSee('value="'.$fakultas.'"', false);
+        }
+
         $response = $this->post('/register', [
             'name' => 'Bunga Santoso',
             'menarche_age' => 13,
@@ -75,7 +85,7 @@ class AlurSistemSikeraTest extends TestCase
             'gender' => 'P',
             'agama' => 'Islam',
             'prodi' => 'Informatika',
-            'fakultas' => 'Fakultas Teknik (FT)',
+            'fakultas' => $fakultas,
             'pendidikan_terakhir' => 'SMA/SMK/MA/Sederajat',
             'nim' => 'G1A026099',
             'email' => 'bunga@unib.ac.id',
@@ -86,7 +96,7 @@ class AlurSistemSikeraTest extends TestCase
         $this->assertAuthenticated();
         $user = auth()->user();
         $this->assertEquals('mahasiswa', $user->role);
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'menarche_age' => 13]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'menarche_age' => 13, 'fakultas' => $fakultas]);
         $this->assertTrue($user->is_biodata_filled);
         $this->assertFalse($user->pretest_completed);
 

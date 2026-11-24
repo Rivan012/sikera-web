@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title') | SIKERA</title>
+    <title>@yield('title') | SIKERA (Sistem Informasi Kesehatan Remaja)</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -30,7 +30,7 @@
                 </span>
                 <span class="flex flex-col">
                     <span class="text-base font-bold leading-tight tracking-tight text-slate-900 dark:text-white">SIKERA</span>
-                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Universitas Bengkulu</span>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Sistem Informasi Kesehatan Remaja</span>
                 </span>
             </a>
 
@@ -73,8 +73,8 @@
 
         <footer class="mx-auto w-full max-w-5xl px-4 pb-6 pt-2 sm:px-6 lg:px-8">
             <div class="flex flex-col items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300 sm:flex-row">
-                <span>SIKERA &middot; Sistem Informasi Kesehatan Reproduksi Remaja</span>
-                <span>Instrumen Edukasi &amp; Evaluasi Riset Universitas Bengkulu</span>
+                <span>SIKERA (Sistem Informasi Kesehatan Remaja)</span>
+                <span>Edukasi dan evaluasi riset di tiga universitas</span>
             </div>
         </footer>
     </div>

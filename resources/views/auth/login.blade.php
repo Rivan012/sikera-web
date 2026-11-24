@@ -218,7 +218,7 @@
                         Ruang belajar kesehatan reproduksi yang empatik, terstruktur, dan berbasis bukti ilmiah.
                     </h2>
                     <p class="mt-3 text-sm leading-relaxed text-teal-50 dark:text-slate-300">
-                        Dirancang khusus bagi sivitas akademika Universitas Bengkulu untuk mendampingi literasi kesehatan
+                        Dirancang bagi sivitas akademika di tiga universitas untuk mendampingi literasi kesehatan
                         reproduksi remaja melalui materi bertahap, pemantauan kesehatan mandiri, dan diskusi konseling yang
                         terjaga kerahasiaannya.
                     </p>

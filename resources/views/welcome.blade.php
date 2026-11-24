@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIKERA | Publikasi Edukasi &amp; Instrumen Riset Kesehatan Reproduksi Universitas Bengkulu</title>
-    <meta name="description" content="Publikasi edukasi ilmiah kesehatan reproduksi remaja, referensi klinis menstruasi FIGO, galeri poster Kaspro, dan instrumen evaluasi kognitif Pre-Test serta Post-Test mahasiswa Universitas Bengkulu.">
+    <title>SIKERA (Sistem Informasi Kesehatan Remaja)</title>
+    <meta name="description" content="Publikasi edukasi ilmiah kesehatan reproduksi remaja, referensi klinis menstruasi FIGO, galeri poster Kaspro, dan instrumen evaluasi kognitif Pre-Test serta Post-Test mahasiswa di tiga universitas.">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -42,7 +42,7 @@
                     </span>
                     <span class="flex flex-col">
                         <span class="font-editorial text-lg font-bold leading-none tracking-tight text-ink dark:text-night-ink">SIKERA</span>
-                        <span class="mt-0.5 text-[11px] font-medium text-ink-body dark:text-night-body">Universitas Bengkulu</span>
+                        <span class="mt-0.5 text-[11px] font-medium text-ink-body dark:text-night-body">Sistem Informasi Kesehatan Remaja</span>
                     </span>
                 </a>
 
@@ -236,7 +236,7 @@
                         </h1>
 
                         <p class="mt-4 max-w-2xl text-sm leading-relaxed text-ink-body dark:text-night-body sm:text-base">
-                            Sistem Informasi Kesehatan Reproduksi Remaja (SIKERA) Universitas Bengkulu menyajikan kurikulum anatomi, fisiologi haid, batasan relasi sehat, serta perlindungan hukum kampus secara ilmiah tanpa vulgaritas, terintegrasi dengan pengukuran Pre-Test dan Post-Test berbasis indeks N-Gain.
+                            SIKERA (Sistem Informasi Kesehatan Remaja) menyajikan kurikulum anatomi, fisiologi haid, batasan relasi sehat, serta perlindungan hukum kampus secara ilmiah tanpa vulgaritas, terintegrasi dengan pengukuran Pre-Test dan Post-Test berbasis indeks N-Gain.
                         </p>
 
                         <div
@@ -959,7 +959,7 @@
                         </span>
                         <div>
                             <p class="font-editorial text-base font-bold text-ink dark:text-night-ink">SIKERA</p>
-                            <p class="text-xs text-ink-body dark:text-night-body">Sistem Informasi Kesehatan Reproduksi Remaja</p>
+                            <p class="text-xs text-ink-body dark:text-night-body">Sistem Informasi Kesehatan Remaja</p>
                         </div>
                     </div>
 

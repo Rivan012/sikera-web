@@ -3,16 +3,32 @@
 
 @section('content')
 @php
-    $selectedFakultas = old('fakultas', 'Fakultas Keguruan dan Ilmu Pendidikan (FKIP)');
-    $daftarFakultas = [
-        'Fakultas Keguruan dan Ilmu Pendidikan (FKIP)',
-        'Fakultas Hukum (FH)',
-        'Fakultas Ekonomi dan Bisnis (FEB)',
-        'Fakultas Ilmu Sosial dan Ilmu Politik (FISIP)',
-        'Fakultas Pertanian (FP)',
-        'Fakultas Matematika dan Ilmu Pengetahuan Alam (FMIPA)',
-        'Fakultas Teknik (FT)',
-        'Fakultas Kedokteran dan Ilmu Kesehatan (FKIK)',
+    $daftarFakultasPerKampus = [
+        'UINFAS' => [
+            'Fakultas Tarbiyah dan Tadris',
+            'Fakultas Syariah',
+            'Fakultas Ushuluddin, Adab dan Dakwah',
+            'Fakultas Ekonomi dan Bisnis Islam',
+        ],
+        'DEHASEN' => [
+            'Fakultas Pertanian',
+            'Fakultas Ekonomi dan Bisnis',
+            'Fakultas Ilmu Komputer',
+            'Fakultas Ilmu-Ilmu Sosial',
+            'Fakultas Keguruan dan Ilmu Pendidikan',
+            'Fakultas Hukum',
+            'Fakultas Ilmu Kesehatan',
+        ],
+        'UNIB' => [
+            'Fakultas Keguruan dan Ilmu Pendidikan (FKIP)',
+            'Fakultas Hukum (FH)',
+            'Fakultas Ekonomi dan Bisnis (FEB)',
+            'Fakultas Ilmu Sosial dan Ilmu Politik (FISIP)',
+            'Fakultas Pertanian (FP)',
+            'Fakultas Matematika dan Ilmu Pengetahuan Alam (FMIPA)',
+            'Fakultas Teknik (FT)',
+            'Fakultas Kedokteran dan Ilmu Kesehatan (FKIK)',
+        ],
     ];
 @endphp
 
@@ -286,7 +302,7 @@
                         <fieldset id="bagian-akademik" class="scroll-mt-6 flex flex-col gap-5">
                             <div class="border-b border-slate-200 pb-3 dark:border-slate-700">
                                 <legend class="text-base font-semibold text-slate-900 dark:text-white">
-                                    02 &middot; Afiliasi Akademik Universitas Bengkulu
+                                    02 &middot; Afiliasi Akademik
                                 </legend>
                                 <p class="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
                                     Data program studi dan fakultas digunakan untuk agregasi partisipasi kelas bimbingan.
@@ -302,10 +318,14 @@
                                     name="fakultas"
                                     class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700 focus:outline-2 focus:outline-offset-0 focus:outline-teal-700/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:focus:border-teal-400 dark:focus:outline-teal-400/30"
                                 >
-                                    @foreach($daftarFakultas as $fakultasItem)
-                                    <option value="{{ $fakultasItem }}" {{ $selectedFakultas === $fakultasItem ? 'selected' : '' }}>
-                                        {{ $fakultasItem }}
-                                    </option>
+                                    <option value="">Pilih fakultas sesuai kampus</option>
+                                    @foreach($daftarFakultasPerKampus as $kampus => $daftarFakultas)
+                                        <optgroup label="{{ $kampus }}">
+                                            @foreach($daftarFakultas as $fakultas)
+                                                @php($nilaiFakultas = $kampus === 'UNIB' ? $fakultas : $kampus.' - '.$fakultas)
+                                                <option value="{{ $nilaiFakultas }}" @selected(old('fakultas') === $nilaiFakultas)>{{ $kampus }} - {{ $fakultas }}</option>
+                                            @endforeach
+                                        </optgroup>
                                     @endforeach
                                 </select>
                             </div>
@@ -389,7 +409,7 @@
                                     required
                                     @error('email') aria-invalid="true" @enderror
                                     class="min-h-11 w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-teal-700 focus:outline-2 focus:outline-offset-0 focus:outline-teal-700/30 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-400 dark:focus:border-teal-400 dark:focus:outline-teal-400/30 {{ $errors->has('email') ? 'border-rose-600 dark:border-rose-400' : 'border-slate-300 dark:border-slate-600' }}"
-                                    placeholder="nama@unib.ac.id"
+                                    placeholder="nama@kampus.ac.id"
                                 >
                                 @error('email')
                                 <p class="text-xs font-medium text-rose-700 dark:text-rose-300">{{ $message }}</p>

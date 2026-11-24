@@ -22,7 +22,7 @@
                         Halo, {{ $user->name }}
                     </h2>
                     <p class="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                        {{ $user->prodi ?? 'Program Studi Mahasiswa' }} &middot; {{ $user->fakultas ?? 'Universitas Bengkulu' }}. Pelajari setiap modul secara berurutan dan gunakan alat pemantauan mandiri sesuai kebutuhan Anda.
+                        {{ $user->prodi ?? 'Program Studi Mahasiswa' }}@if($user->fakultas) &middot; {{ $user->fakultas }}@endif. Pelajari setiap modul secara berurutan dan gunakan alat pemantauan mandiri sesuai kebutuhan Anda.
                     </p>
 
                     <div class="mt-5 flex flex-wrap items-center gap-3">

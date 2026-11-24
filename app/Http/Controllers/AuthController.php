@@ -99,7 +99,7 @@ class AuthController extends Controller
             'gender' => $validated['gender'],
             'agama' => $validated['agama'],
             'prodi' => $validated['prodi'],
-            'fakultas' => $validated['fakultas'] ?? 'Universitas Bengkulu',
+            'fakultas' => $validated['fakultas'] ?? null,
             'pendidikan_terakhir' => $validated['pendidikan_terakhir'],
             'is_biodata_filled' => true,
             'pretest_completed' => false,
