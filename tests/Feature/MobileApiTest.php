@@ -164,14 +164,14 @@ class MobileApiTest extends TestCase
         $readSuccess->assertStatus(200)
             ->assertJson(['success' => true, 'data' => ['points_earned' => 10]]);
 
-        // 5. Submit Post-Test Modul 1
-        $submitPosttest = $this->withHeader('Authorization', "Bearer {$token}")
+        // 5. Endpoint lama Post-Test per modul mengembalikan 410 Gone dengan rujukan ke /api/v1/posttest
+        $legacyPosttest = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson("/api/v1/modules/{$module1->id}/posttest", [
                 'answers' => $answers,
             ]);
 
-        $submitPosttest->assertStatus(200)
-            ->assertJsonStructure(['data' => ['posttest_score', 'n_gain_score']]);
+        $legacyPosttest->assertStatus(410)
+            ->assertJson(['reason' => 'moved_to_global_posttest', 'redirect_endpoint' => '/api/v1/posttest']);
     }
 
     public function test_api_selfcare_period_dan_bmi(): void

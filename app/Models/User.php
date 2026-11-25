@@ -27,6 +27,7 @@ class User extends Authenticatable
         'is_biodata_filled',
         'pretest_completed',
         'posttest_completed',
+        'all_modules_completed_at',
         'points',
         'streak_days',
         'last_activity_date',
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'is_biodata_filled' => 'boolean',
             'pretest_completed' => 'boolean',
             'posttest_completed' => 'boolean',
+            'all_modules_completed_at' => 'datetime',
             'last_activity_date' => 'date',
         ];
     }

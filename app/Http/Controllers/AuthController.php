@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Inertia;
 
 class AuthController extends Controller
 {
@@ -28,7 +29,7 @@ class AuthController extends Controller
             }
         }
 
-        return view('auth.login');
+        return Inertia::render('Auth/Login');
     }
 
     public function login(Request $request)
@@ -66,7 +67,7 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('auth.register');
+        return Inertia::render('Auth/Register');
     }
 
     public function register(Request $request)
@@ -120,7 +121,7 @@ class AuthController extends Controller
             return redirect()->route('mahasiswa.dashboard');
         }
 
-        return view('auth.biodata', compact('user'));
+        return Inertia::render('Auth/Biodata', ['user' => $user]);
     }
 
     public function saveBiodata(UpdateBiodataRequest $request): RedirectResponse

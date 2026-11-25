@@ -2,6 +2,8 @@
 layer(base);
 
 @import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/forms";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,6 +12,19 @@ layer(base);
   --font-outfit: Outfit, sans-serif;
   --font-jakarta: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-editorial: "Newsreader", Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --text-heading-one: 64px;
+  --text-heading-one--line-height: 80px;
+  --text-heading-two: 56px;
+  --text-heading-two--line-height: 72px;
+  --text-heading-three: 48px;
+  --text-heading-three--line-height: 60px;
+  --text-heading-four: 40px;
+  --text-heading-four--line-height: 48px;
+  --text-heading-five: 32px;
+  --text-heading-five--line-height: 40px;
+  --text-heading-six: 24px;
+  --text-heading-six--line-height: 32px;
 
   --color-paper: #faf8f4;
   --color-parchment: #f2efe9;

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class LandingPageTest extends TestCase
@@ -15,27 +16,38 @@ class LandingPageTest extends TestCase
     {
         $this->seed();
 
-        $response = $this->get(route('home'));
+        $response = $this->get(route('home'))->assertOk();
 
-        $response->assertSee('Anatomi, Fisiologi, & Higienitas Reproduksi');
-        $response->assertSee('Pengenalan Anatomi Organ Reproduksi Pria & Wanita');
-        $response->assertSee('4 Panduan Utama Higienitas Organ Kewanitaan');
-        $response->assertSee('Dilema Relasi Kos-Kosan & Tekanan Tinggal Bersama');
-        $response->assertDontSee('*boundaries*');
-        $response->assertSee('tel:073621170', false);
-        $response->assertSee('tel:073652004', false);
-        $response->assertDontSee('tel:081278901234', false);
-        $response->assertSee('[KONTAK TELEPON BELUM DIVERIFIKASI]');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('modules.0.title', 'Anatomi, Fisiologi, & Higienitas Reproduksi')
+            ->where('modules.0.topics.0.title', 'Pengenalan Anatomi Organ Reproduksi Pria & Wanita')
+            ->where('posters.0.title', '4 Panduan Utama Higienitas Organ Kewanitaan')
+            ->where('cases.0.title', 'Dilema Relasi Kos-Kosan & Tekanan Tinggal Bersama')
+            ->where('dataLoadError', false)
+        );
+
+        $props = $response->viewData('page')['props'];
+        $this->assertStringNotContainsString('*boundaries*', $props['cases'][0]['narrative']);
+
+        $telHrefs = array_filter(array_column($props['hotlines'], 'tel_href'));
+        $this->assertContains('tel:073621170', $telHrefs);
+        $this->assertContains('tel:073652004', $telHrefs);
+        $this->assertNotContains('tel:081278901234', $telHrefs);
     }
 
     public function test_landing_page_renders_explicit_empty_states_when_records_do_not_exist(): void
     {
-        $response = $this->get(route('home'));
-
-        $response->assertSee('Belum ada modul pembelajaran yang dipublikasikan');
-        $response->assertSee('Belum ada studi kasus yang dipublikasikan');
-        $response->assertSee('Belum ada poster Kaspro yang diunggah');
-        $response->assertSee('Daftar kontak darurat belum tercatat di basis data.');
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Welcome')
+                ->has('modules', 0)
+                ->has('posters', 0)
+                ->has('cases', 0)
+                ->has('hotlines', 0)
+                ->where('dataLoadError', false)
+            );
     }
 
     public function test_authenticated_user_sees_workspace_actions_on_landing_page(): void
@@ -57,9 +69,13 @@ class LandingPageTest extends TestCase
             'password' => Hash::make('password'),
         ]);
 
-        $response = $this->actingAs($user)->get(route('home'));
-
-        $response->assertSee('Buka Ruang Kerja SIKERA');
-        $response->assertDontSee('Isi Biodata Responden Baru');
+        $this->actingAs($user)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Welcome')
+                ->where('auth.user.id', $user->id)
+                ->where('auth.user.name', 'Mahasiswa Uji')
+            );
     }
 }

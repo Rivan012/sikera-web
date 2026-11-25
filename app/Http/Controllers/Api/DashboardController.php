@@ -11,6 +11,7 @@ use App\Models\ForumThread;
 use App\Models\KesproFeed;
 use App\Models\ModuleProgress;
 use App\Models\PeriodLog;
+use App\Services\EvaluationEligibilityService;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -18,48 +19,49 @@ class DashboardController extends Controller
     /**
      * Ringkasan Beranda / Dashboard Mobile Mahasiswa
      */
-    public function index(Request $request)
+    public function index(Request $request, EvaluationEligibilityService $eligibility)
     {
         $user = $request->user();
         $isFemale = ($user->gender === 'P');
+        $posttestGate = $eligibility->syncAllModulesCompletion($user);
 
         // 1. Modul Pembelajaran & Progress
-        $modules = EducationalModule::withCount('topics')->orderBy('module_number')->get()->map(function ($mod) use ($user) {
-            $topicIds = $mod->topics->pluck('id');
-            $completedCount = ModuleProgress::where('user_id', $user->id)
-                ->whereIn('module_topic_id', $topicIds)
-                ->where('is_completed', true)
-                ->count();
+        $modules = EducationalModule::with('topics:id,educational_module_id')
+            ->withCount('topics')
+            ->orderBy('module_number')
+            ->get()
+            ->map(function ($mod) use ($user, $posttestGate) {
+                $topicIds = $mod->topics->pluck('id');
+                $completedCount = $topicIds->isEmpty()
+                    ? 0
+                    : ModuleProgress::where('user_id', $user->id)
+                        ->whereIn('module_topic_id', $topicIds)
+                        ->where('is_completed', true)
+                        ->count();
 
-            $hasPretest = EvaluationResponse::where('user_id', $user->id)
-                ->where('type', 'pre_test')
-                ->where(function ($q) use ($mod) {
-                    $q->where('module_number', $mod->module_number)
-                        ->orWhereNull('module_number');
-                })
-                ->exists();
+                $hasPretest = $user->isAdmin() || $user->isDosen() || EvaluationResponse::where('user_id', $user->id)
+                    ->where('type', 'pre_test')
+                    ->where(function ($q) use ($mod) {
+                        $q->where('module_number', $mod->module_number)
+                            ->orWhereNull('module_number');
+                    })
+                    ->exists();
 
-            $posttest = EvaluationResponse::where('user_id', $user->id)
-                ->where('type', 'post_test')
-                ->where('module_number', $mod->module_number)
-                ->latest()
-                ->first();
-
-            return [
-                'id' => $mod->id,
-                'module_number' => $mod->module_number,
-                'title' => $mod->title,
-                'subtitle' => $mod->subtitle,
-                'banner_image' => url("/api/v1/modules/{$mod->id}/banner"),
-                'estimated_time' => $mod->estimated_time,
-                'total_topics' => $mod->topics_count,
-                'completed_topics' => $completedCount,
-                'progress_percentage' => $mod->topics_count > 0 ? round(($completedCount / $mod->topics_count) * 100) : 0,
-                'has_pretest' => $hasPretest,
-                'has_posttest' => (bool) $posttest,
-                'n_gain' => $posttest ? $posttest->n_gain_score : null,
-            ];
-        });
+                return [
+                    'id' => $mod->id,
+                    'module_number' => $mod->module_number,
+                    'title' => $mod->title,
+                    'subtitle' => $mod->subtitle,
+                    'banner_image' => url("/api/v1/modules/{$mod->id}/banner"),
+                    'estimated_time' => $mod->estimated_time,
+                    'total_topics' => $mod->topics_count,
+                    'completed_topics' => $completedCount,
+                    'progress_percentage' => $mod->topics_count > 0 ? round(($completedCount / $mod->topics_count) * 100) : 0,
+                    'has_pretest' => $hasPretest,
+                    'has_posttest' => $posttestGate['has_completed_posttest'],
+                    'n_gain' => $posttestGate['latest_posttest']['n_gain_score'] ?? null,
+                ];
+            });
 
         // 2. Poster Kaspro Pilihan
         $posters = KesproFeed::latest()->take(3)->get()->map(function ($p) {
@@ -117,6 +119,7 @@ class DashboardController extends Controller
                     'streak_days' => $user->streak_days,
                 ],
                 'modules' => $modules,
+                'posttest_gate' => $posttestGate,
                 'posters' => $posters,
                 'selfcare' => [
                     'is_female' => $isFemale,

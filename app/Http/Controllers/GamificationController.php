@@ -9,6 +9,7 @@ use App\Models\UserDailyActivity;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class GamificationController extends Controller
 {
@@ -31,7 +32,14 @@ class GamificationController extends Controller
             $question = TriviaQuestion::inRandomOrder()->first();
         }
 
-        return view('gamification.trivia', compact('question', 'result', 'user'));
+        return Inertia::render('Gamification/Trivia', [
+            'question' => $question ? [
+                'id' => $question->id,
+                'question' => $question->question,
+                'choices' => $question->choices,
+            ] : null,
+            'result' => $result,
+        ]);
     }
 
     public function submitTrivia(Request $request)
@@ -89,12 +97,19 @@ class GamificationController extends Controller
         $result = null;
 
         if ($alreadyAnswered) {
-            $result = ['answered' => true, 'message' => 'Anda sudah menjawab kartu Mitos/Fakta hari ini.'];
+            $result = session('myth_result', ['answered' => true, 'message' => 'Anda sudah menjawab kartu Mitos/Fakta hari ini.']);
         } else {
             $card = MythFactCard::inRandomOrder()->first();
         }
 
-        return view('gamification.myth_fact', compact('card', 'result', 'user'));
+        return Inertia::render('Gamification/MythFact', [
+            'card' => $card ? [
+                'id' => $card->id,
+                'statement' => $card->statement,
+                'category' => $card->category,
+            ] : null,
+            'result' => $result,
+        ]);
     }
 
     public function submitMythFact(Request $request)
@@ -141,7 +156,7 @@ class GamificationController extends Controller
         $user = Auth::user();
         $entries = SecretDiary::where('user_id', $user->id)->latest('entry_date')->take(30)->get();
 
-        return view('gamification.diary', compact('entries', 'user'));
+        return Inertia::render('Gamification/Diary', ['entries' => $entries]);
     }
 
     public function storeDiary(Request $request)

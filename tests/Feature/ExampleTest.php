@@ -2,26 +2,26 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
+    use RefreshDatabase;
+
     public function test_the_application_returns_a_successful_response(): void
     {
-        $landingResponse = $this->get('/');
-        $landingResponse->assertStatus(200);
-        $landingResponse->assertSee('SIKERA');
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Welcome'));
 
-        $loginResponse = $this->get('/login');
-        $loginResponse->assertStatus(200);
-        $loginResponse->assertSee('Masuk ke Portal SIKERA');
+        $this->get('/login')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/Login'));
 
-        $registerResponse = $this->get('/register');
-        $registerResponse->assertStatus(200);
-        $registerResponse->assertSee('Formulir Biodata Mahasiswa');
+        $this->get('/register')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/Register'));
     }
 }

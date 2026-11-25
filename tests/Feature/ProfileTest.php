@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
@@ -36,13 +37,22 @@ class ProfileTest extends TestCase
         $data = $this->studentProfile($user);
         unset($data['avatar'], $data['email']);
 
-        $form = $this->actingAs($user)->get('/biodata')->assertOk()->assertSee('value="D2"', false);
-        foreach (array_keys($data) as $field) {
-            $form->assertSee('name="'.$field.'"', false);
-        }
+        $this->actingAs($user)
+            ->get('/biodata')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Auth/Biodata')
+                ->where('user.pendidikan_terakhir', 'D2')
+            );
 
         $this->post('/biodata', $data)->assertRedirectToRoute('mahasiswa.dashboard');
-        $this->get('/profil')->assertOk()->assertSee('value="A123"', false)->assertSee('value="MIPA"', false);
+        $this->get('/profil')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/Edit')
+                ->where('user.nim', 'A123')
+                ->where('user.fakultas', 'MIPA')
+            );
         $this->assertDatabaseHas('users', [...$data, 'id' => $user->id, 'nim' => 'A123', 'is_biodata_filled' => true]);
     }
 
@@ -79,9 +89,21 @@ class ProfileTest extends TestCase
         $user = User::factory()->create(['role' => 'mahasiswa', 'is_biodata_filled' => true, 'pretest_completed' => true]);
         $profile = $this->studentProfile($user);
 
-        $this->actingAs($user)->get('/profil')->assertOk()->assertSee($user->email)->assertSee('Simpan perubahan');
+        $this->actingAs($user)
+            ->get('/profil')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/Edit')
+                ->where('user.email', $user->email)
+            );
         $this->put('/profil', $profile)->assertRedirectToRoute('profile.edit')->assertSessionHas('success');
-        $this->get('/profil')->assertOk()->assertSee('Dewi Anggraini')->assertSee('A123');
+        $this->get('/profil')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/Edit')
+                ->where('user.name', 'Dewi Anggraini')
+                ->where('user.nim', 'A123')
+            );
         $this->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('data.user.fakultas', 'MIPA');
         $this->assertDatabaseHas('users', [...$profile, 'nim' => 'A123', 'id' => $user->id, 'pretest_completed' => true]);
     }

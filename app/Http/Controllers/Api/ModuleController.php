@@ -8,6 +8,7 @@ use App\Models\EvaluationResponse;
 use App\Models\ModuleProgress;
 use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
+use App\Services\EvaluationEligibilityService;
 use App\Services\GoogleSheetsSyncService;
 use App\Services\ModuleBannerService;
 use App\Services\ModuleExcelImportService;
@@ -20,30 +21,25 @@ class ModuleController extends Controller
     /**
      * Daftar Semua Modul Pembelajaran
      */
-    public function index(Request $request)
+    public function index(Request $request, EvaluationEligibilityService $eligibility)
     {
         $user = $request->user();
+        $posttestGate = $eligibility->syncAllModulesCompletion($user);
 
-        $modules = EducationalModule::withCount('topics')->orderBy('module_number')->get()->map(function ($mod) use ($user) {
+        $modules = EducationalModule::withCount('topics')->orderBy('module_number')->get()->map(function ($mod) use ($user, $posttestGate) {
             $topicIds = $mod->topics->pluck('id');
             $completedCount = ModuleProgress::where('user_id', $user->id)
                 ->whereIn('module_topic_id', $topicIds)
                 ->where('is_completed', true)
                 ->count();
 
-            $hasPretest = EvaluationResponse::where('user_id', $user->id)
+            $hasPretest = $user->isAdmin() || $user->isDosen() || EvaluationResponse::where('user_id', $user->id)
                 ->where('type', 'pre_test')
                 ->where(function ($q) use ($mod) {
                     $q->where('module_number', $mod->module_number)
                         ->orWhereNull('module_number');
                 })
                 ->exists();
-
-            $posttest = EvaluationResponse::where('user_id', $user->id)
-                ->where('type', 'post_test')
-                ->where('module_number', $mod->module_number)
-                ->latest()
-                ->first();
 
             $allTopicsDone = ($completedCount >= $mod->topics_count) && $mod->topics_count > 0;
 
@@ -61,9 +57,9 @@ class ModuleController extends Controller
                 'is_locked' => ! $hasPretest,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool) $posttest,
-                'posttest_score' => $posttest ? $posttest->total_score : null,
-                'n_gain' => $posttest ? $posttest->n_gain_score : null,
+                'has_posttest' => $posttestGate['has_completed_posttest'],
+                'posttest_score' => $posttestGate['latest_posttest']['total_score'] ?? null,
+                'n_gain' => $posttestGate['latest_posttest']['n_gain_score'] ?? null,
             ];
         });
 
@@ -72,6 +68,7 @@ class ModuleController extends Controller
             'message' => 'Daftar modul berhasil dimuat.',
             'data' => [
                 'modules' => $modules,
+                'posttest_gate' => $posttestGate,
             ],
         ]);
     }
@@ -79,12 +76,12 @@ class ModuleController extends Controller
     /**
      * Detail Modul & Daftar Submateri
      */
-    public function show(Request $request, $id)
+    public function show(Request $request, $id, EvaluationEligibilityService $eligibility)
     {
         $user = $request->user();
         $module = EducationalModule::with(['topics' => fn ($q) => $q->orderBy('order_index')])->findOrFail($id);
 
-        $hasPretest = EvaluationResponse::where('user_id', $user->id)
+        $hasPretest = $user->isAdmin() || $user->isDosen() || EvaluationResponse::where('user_id', $user->id)
             ->where('type', 'pre_test')
             ->where(function ($q) use ($module) {
                 $q->where('module_number', $module->module_number)
@@ -114,12 +111,7 @@ class ModuleController extends Controller
         });
 
         $allTopicsDone = count($completedTopicIds) >= $module->topics->count() && $module->topics->count() > 0;
-
-        $posttest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'post_test')
-            ->where('module_number', $module->module_number)
-            ->latest()
-            ->first();
+        $posttestGate = $eligibility->syncAllModulesCompletion($user);
 
         return response()->json([
             'success' => true,
@@ -137,9 +129,7 @@ class ModuleController extends Controller
                 'is_locked' => ! $hasPretest,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool) $posttest,
-                'posttest_score' => $posttest ? $posttest->total_score : null,
-                'n_gain' => $posttest ? $posttest->n_gain_score : null,
+                'posttest_gate' => $posttestGate,
                 'topics' => $topics,
             ],
         ]);
@@ -151,7 +141,7 @@ class ModuleController extends Controller
     public function getPretestQuestions($moduleId)
     {
         $module = EducationalModule::findOrFail($moduleId);
-        $questions = TestQuestion::where('module_target', $module->module_number)->get()->map(function ($q) {
+        $questions = TestQuestion::preTest()->where('module_target', $module->module_number)->get()->map(function ($q) {
             return [
                 'id' => $q->id,
                 'module_target' => $q->module_target,
@@ -161,7 +151,7 @@ class ModuleController extends Controller
         });
 
         if ($questions->isEmpty()) {
-            $questions = TestQuestion::all()->map(function ($q) {
+            $questions = TestQuestion::preTest()->get()->map(function ($q) {
                 return [
                     'id' => $q->id,
                     'module_target' => $q->module_target,
@@ -191,10 +181,10 @@ class ModuleController extends Controller
     {
         $user = $request->user();
         $module = EducationalModule::findOrFail($moduleId);
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
+        $questions = TestQuestion::preTest()->where('module_target', $module->module_number)->get();
 
         if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
+            $questions = TestQuestion::preTest()->get();
         }
 
         $validator = Validator::make($request->all(), [
@@ -253,14 +243,14 @@ class ModuleController extends Controller
     /**
      * Membaca Submateri Modul (Konten HTML & Video)
      */
-    public function readTopic(Request $request, $moduleId, $topicId)
+    public function readTopic(Request $request, $moduleId, $topicId, EvaluationEligibilityService $eligibility)
     {
         $user = $request->user();
         $module = EducationalModule::findOrFail($moduleId);
         $topic = ModuleTopic::where('educational_module_id', $moduleId)->findOrFail($topicId);
 
         // Cek Gating Pre-Test
-        $hasPretest = EvaluationResponse::where('user_id', $user->id)
+        $hasPretest = $user->isAdmin() || $user->isDosen() || EvaluationResponse::where('user_id', $user->id)
             ->where('type', 'pre_test')
             ->where(function ($q) use ($module) {
                 $q->where('module_number', $module->module_number)
@@ -289,6 +279,8 @@ class ModuleController extends Controller
             $user->increment('points', 10);
             $pointsAwarded = 10;
         }
+
+        $posttestGate = $eligibility->syncAllModulesCompletion($user);
 
         // Prev & Next navigation
         $allTopics = ModuleTopic::where('educational_module_id', $moduleId)->orderBy('order_index')->get();
@@ -329,7 +321,8 @@ class ModuleController extends Controller
                 'prev_topic_id' => $prevTopic ? $prevTopic->id : null,
                 'next_topic_id' => $nextTopic ? $nextTopic->id : null,
                 'all_topics_completed' => $allTopicsCompleted,
-                'ready_for_posttest' => $allTopicsCompleted,
+                'ready_for_posttest' => $posttestGate['is_posttest_unlocked'],
+                'posttest_gate' => $posttestGate,
             ],
         ]);
     }
@@ -377,138 +370,36 @@ class ModuleController extends Controller
     }
 
     /**
-     * Soal Post-Test Khusus Modul
+     * Endpoint lama Post-Test per modul (Digantikan oleh /api/v1/posttest terpadu dengan jeda 3 hari)
      */
-    public function getPosttestQuestions(Request $request, $moduleId)
+    public function getPosttestQuestions(Request $request, $moduleId, EvaluationEligibilityService $eligibility)
     {
-        $user = $request->user();
-        $module = EducationalModule::findOrFail($moduleId);
-
-        $pretest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'pre_test')
-            ->where(function ($q) use ($module) {
-                $q->where('module_number', $module->module_number)
-                    ->orWhereNull('module_number');
-            })
-            ->latest()
-            ->first();
-
-        $questions = TestQuestion::where('module_target', $module->module_number)->get()->map(function ($q) {
-            return [
-                'id' => $q->id,
-                'module_target' => $q->module_target,
-                'question_text' => $q->question_text,
-                'options' => $q->options,
-            ];
-        });
-
-        if ($questions->isEmpty()) {
-            $questions = TestQuestion::all()->map(function ($q) {
-                return [
-                    'id' => $q->id,
-                    'module_target' => $q->module_target,
-                    'question_text' => $q->question_text,
-                    'options' => $q->options,
-                ];
-            });
-        }
+        $gate = $eligibility->syncAllModulesCompletion($request->user());
 
         return response()->json([
-            'success' => true,
-            'message' => 'Soal Post-Test Modul '.$module->module_number.' berhasil dimuat.',
+            'success' => false,
+            'reason' => 'moved_to_global_posttest',
+            'message' => 'Post-Test kini bersifat terpadu dan terbuka 3 hari setelah seluruh modul selesai dipelajari melalui endpoint /api/v1/posttest.',
+            'redirect_endpoint' => '/api/v1/posttest',
             'data' => [
-                'module_id' => $module->id,
-                'module_number' => $module->module_number,
-                'module_title' => $module->title,
-                'pretest_score' => $pretest ? $pretest->total_score : null,
-                'total_questions' => $questions->count(),
-                'questions' => $questions,
+                'posttest_gate' => $gate,
             ],
-        ]);
+        ], 410);
     }
 
-    /**
-     * Submit Jawaban Post-Test Modul & Hitung N-Gain
-     */
-    public function submitPosttest(Request $request, $moduleId)
+    public function submitPosttest(Request $request, $moduleId, EvaluationEligibilityService $eligibility)
     {
-        $user = $request->user();
-        $module = EducationalModule::findOrFail($moduleId);
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
-
-        if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
-        }
-
-        $validator = Validator::make($request->all(), [
-            'answers' => 'required|array',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Format jawaban tidak valid.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $answers = $request->input('answers');
-        $correctCount = 0;
-
-        foreach ($questions as $q) {
-            $userAns = $answers[$q->id] ?? null;
-            if ($userAns && strtoupper($userAns) === strtoupper($q->correct_answer)) {
-                $correctCount++;
-            }
-        }
-
-        $postScore = count($questions) > 0 ? round(($correctCount / count($questions)) * 100) : 0;
-
-        $pretest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'pre_test')
-            ->where(function ($q) use ($module) {
-                $q->where('module_number', $module->module_number)
-                    ->orWhereNull('module_number');
-            })
-            ->latest()
-            ->first();
-
-        $preScore = $pretest ? $pretest->total_score : 0;
-
-        $nGain = 0;
-        if ((100 - $preScore) > 0) {
-            $nGain = round(($postScore - $preScore) / (100 - $preScore), 3);
-        }
-
-        $posttest = EvaluationResponse::create([
-            'user_id' => $user->id,
-            'type' => 'post_test',
-            'module_number' => $module->module_number,
-            'raw_answers' => $answers,
-            'scores_per_module' => ['Modul '.$module->module_number => $postScore],
-            'total_score' => $postScore,
-            'n_gain_score' => $nGain,
-            'submitted_at' => now(),
-        ]);
-
-        $user->increment('points', 50);
-        $user->update(['posttest_completed' => true]);
-
-        GoogleSheetsSyncService::syncPosttestSubmission($user, $posttest, $nGain);
+        $gate = $eligibility->syncAllModulesCompletion($request->user());
 
         return response()->json([
-            'success' => true,
-            'message' => 'Post-Test Modul '.$module->module_number.' selesai! Peningkatan skor berhasil dihitung.',
+            'success' => false,
+            'reason' => 'moved_to_global_posttest',
+            'message' => 'Gunakan endpoint POST /api/v1/posttest setelah seluruh modul selesai dan jeda 3 hari terpenuhi.',
+            'redirect_endpoint' => '/api/v1/posttest',
             'data' => [
-                'module_id' => $module->id,
-                'module_number' => $module->module_number,
-                'pretest_score' => $preScore,
-                'posttest_score' => $postScore,
-                'n_gain_score' => $nGain,
-                'effectiveness_category' => $nGain >= 0.7 ? 'Tinggi' : ($nGain >= 0.3 ? 'Sedang' : 'Rendah'),
-                'points_earned' => 50,
+                'posttest_gate' => $gate,
             ],
-        ]);
+        ], 410);
     }
 
     /**
@@ -538,8 +429,8 @@ class ModuleController extends Controller
         $title = $module->title;
         $pdfPaths = $module->topics->pluck('pdf_path')->filter()->all();
 
-        // Bersihkan soal kuesioner terkait modul ini
-        TestQuestion::where('module_target', $moduleNumber)->delete();
+        // Bersihkan soal kuesioner Pre-Test terkait modul ini (bank soal Post-Test umum tetap dipertahankan)
+        TestQuestion::preTest()->where('module_target', $moduleNumber)->delete();
 
         // Hapus modul (module_topics dan module_progress otomatis terhapus via foreign key cascade)
         $module->delete();

@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\AdminTestQuestionApiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CaseAndForumController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EvaluationApiController;
 use App\Http\Controllers\Api\GamificationController;
 use App\Http\Controllers\Api\ModuleController;
 use App\Http\Controllers\Api\PosterController;
@@ -33,7 +35,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
     });
 
-    // 3. Panduan Publik & Kalkulator Simulasi (Tanpa Auth jika diperlukan)
+    // 3. Panduan Publik & Kalkulator Simulasi
     Route::get('/selfcare/guides/blood', [SelfCareController::class, 'bloodGuide']);
     Route::get('/selfcare/guides/hygiene', [SelfCareController::class, 'hygieneGuide']);
     Route::post('/selfcare/period/calculate', [SelfCareController::class, 'calculatePeriod']);
@@ -58,7 +60,7 @@ Route::prefix('v1')->group(function () {
         // 4.2 Beranda / Dashboard Mobile
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
-        // 4.3 Modul Edukasi & Pre-Test / Post-Test Per Modul
+        // 4.3 Modul Edukasi & Pre-Test Per Modul
         Route::prefix('modules')->group(function () {
             Route::get('/', [ModuleController::class, 'index']);
             Route::get('/{id}', [ModuleController::class, 'show']);
@@ -70,6 +72,26 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/posttest', [ModuleController::class, 'submitPosttest']);
             Route::delete('/{id}', [ModuleController::class, 'destroy']);
             Route::post('/import', [ModuleController::class, 'importExcel']);
+        });
+
+        // 4.3b Post-Test Akhir Terpadu (Terbuka 3 Hari Setelah Semua Modul Selesai)
+        Route::prefix('posttest')->group(function () {
+            Route::get('/status', [EvaluationApiController::class, 'status']);
+            Route::get('/', [EvaluationApiController::class, 'getQuestions']);
+            Route::post('/', [EvaluationApiController::class, 'submit']);
+        });
+
+        // 4.3c Pengelolaan Soal Pre-Test (Per Modul) & Post-Test (Khusus Admin)
+        Route::prefix('admin')->group(function () {
+            Route::get('/pretest-questions', [AdminTestQuestionApiController::class, 'indexPretest']);
+            Route::post('/pretest-questions', [AdminTestQuestionApiController::class, 'storePretest']);
+            Route::put('/pretest-questions/{id}', [AdminTestQuestionApiController::class, 'updatePretest']);
+            Route::delete('/pretest-questions/{id}', [AdminTestQuestionApiController::class, 'destroyPretest']);
+
+            Route::get('/posttest-questions', [AdminTestQuestionApiController::class, 'indexPosttest']);
+            Route::post('/posttest-questions', [AdminTestQuestionApiController::class, 'storePosttest']);
+            Route::put('/posttest-questions/{id}', [AdminTestQuestionApiController::class, 'updatePosttest']);
+            Route::delete('/posttest-questions/{id}', [AdminTestQuestionApiController::class, 'destroyPosttest']);
         });
 
         // 4.4 Self-Care Tools (Period Tracker, IMT, Prediksi Menstruasi)

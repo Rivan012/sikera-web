@@ -75,17 +75,21 @@ class PostTestExcelExportService
 
         $posttests = $query->orderBy('submitted_at', 'desc')->get();
 
-        // Ambil bank soal
+        // Ambil bank soal sesuai filter evaluasi
         if (! empty($filters['module']) && is_numeric($filters['module'])) {
-            $questions = TestQuestion::where('module_target', (int) $filters['module'])->orderBy('id')->get();
+            $questions = TestQuestion::preTest()->where('module_target', (int) $filters['module'])->orderBy('id')->get();
         } else {
-            $questions = TestQuestion::orderBy('module_target')->orderBy('id')->get();
+            $questions = TestQuestion::postTest()->orderBy('id')->get();
+            if ($questions->isEmpty()) {
+                $questions = TestQuestion::orderBy('module_target')->orderBy('id')->get();
+            }
         }
 
         if ($questions->isEmpty()) {
             $questions = TestQuestion::orderBy('id')->get();
         }
 
+        $eligibilityService = app(EvaluationEligibilityService::class);
         $rekapRows = [];
         $jawabanRows = [];
         $binerRows = [];
@@ -95,21 +99,19 @@ class PostTestExcelExportService
             $user = $post->user;
             $rawAnswers = $post->raw_answers ?? [];
 
-            // Cari Pre-Test matching pengguna
-            $pretest = EvaluationResponse::where('user_id', $post->user_id)
-                ->where('type', 'pre_test')
-                ->where(function ($q) use ($post) {
-                    if ($post->module_number !== null) {
+            if ($post->module_number !== null) {
+                $pretest = EvaluationResponse::where('user_id', $post->user_id)
+                    ->where('type', 'pre_test')
+                    ->where(function ($q) use ($post) {
                         $q->where('module_number', $post->module_number)
                             ->orWhereNull('module_number');
-                    } else {
-                        $q->whereNull('module_number');
-                    }
-                })
-                ->latest('submitted_at')
-                ->first();
-
-            $preScore = $pretest ? $pretest->total_score : 0;
+                    })
+                    ->latest('submitted_at')
+                    ->first();
+                $preScore = $pretest ? $pretest->total_score : 0;
+            } else {
+                $preScore = $user ? $eligibilityService->calculateAggregatePretestScore($user) : 0;
+            }
             $postScore = $post->total_score;
             $gain = $postScore - $preScore;
 

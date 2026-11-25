@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AdminUserCrudTest extends TestCase
@@ -38,12 +39,13 @@ class AdminUserCrudTest extends TestCase
 
     public function test_superadmin_dapat_melihat_halaman_daftar_pengguna_dengan_tombol_aksi(): void
     {
-        $response = $this->actingAs($this->admin)->get(route('admin.users.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Tambah Pengguna Baru');
-        $response->assertSee('Aksi');
-        $response->assertSee($this->admin->name);
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Users/Index')
+                ->has('users')
+            );
     }
 
     public function test_superadmin_dapat_menambahkan_pengguna_baru(): void

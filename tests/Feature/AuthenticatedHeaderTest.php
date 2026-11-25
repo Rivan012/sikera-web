@@ -4,13 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AuthenticatedHeaderTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authenticated_header_displays_avatar_instead_of_initials(): void
+    public function test_authenticated_header_shares_avatar_for_react_shell(): void
     {
         $user = User::factory()->create([
             'name' => 'Dewi Anggraini',
@@ -18,12 +19,14 @@ class AuthenticatedHeaderTest extends TestCase
             'avatar' => 'https://example.test/avatar.jpg',
         ]);
 
-        $this->actingAs($user);
-
-        $this->view('layouts.partials.header')
-            ->assertSee($user->avatar)
-            ->assertSee('alt="'.$user->name.'"', false)
-            ->assertDontSee('>DA</span>', false);
+        $this->actingAs($user)
+            ->get('/profil')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/Edit')
+                ->where('auth.user.name', 'Dewi Anggraini')
+                ->where('auth.user.avatar', 'https://example.test/avatar.jpg')
+            );
     }
 
     public function test_authenticated_header_falls_back_to_initials_without_avatar(): void
@@ -34,10 +37,13 @@ class AuthenticatedHeaderTest extends TestCase
             'avatar' => null,
         ]);
 
-        $this->actingAs($user);
-
-        $this->view('layouts.partials.header')
-            ->assertSee('>DA</span>', false)
-            ->assertDontSee('<img', false);
+        $this->actingAs($user)
+            ->get('/profil')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Profile/Edit')
+                ->where('auth.user.initials', 'DA')
+                ->where('auth.user.avatar', null)
+            );
     }
 }

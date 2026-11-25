@@ -1,0 +1,197 @@
+DOKUMEN PERUBAHAN #2
+Tanggal      : 2026-11-25
+Judul        : Restrukturisasi Alur Pre-Test per Modul & Post-Test +3 Hari, Menu Bank Soal Admin Terpisah, Migrasi Penuh Inertia + React TypeScript (TailAdmin), dan Paritas REST API v1
+Branch       : main
+
+================================================================================
+1. RINGKASAN PERUBAHAN
+================================================================================
+Pembaruan besar ini mencakup tiga pilar utama pada aplikasi SIKERA:
+1. Restrukturisasi Alur Evaluasi Riset & Pemisahan Menu Bank Soal Admin:
+   - Pre-Test dikerjakan per modul tepat sebelum mahasiswa dapat membuka subbab
+     atau pembaca Flipbook PDF pada modul tersebut.
+   - Post-Test diubah dari per modul menjadi 1x Post-Test akhir terpadu yang
+     terbuka otomatis 3 hari (72 jam) sejak seluruh subbab pada semua modul
+     diselesaikan (`users.all_modules_completed_at + 3 hari`).
+   - Indeks N-Gain dihitung menggunakan rata-rata skor Pre-Test seluruh modul
+     dibandingkan terhadap skor Post-Test akhir terpadu, dan sesi mahasiswa
+     tetap aktif setelah mengirim Post-Test (tidak dipaksa keluar).
+   - Pada peran Super Admin, ditambahkan dua menu terpisah di bilah samping:
+     * Kelola Pre-Test (`/admin/pretest-questions`): soal dikelompokkan dan
+       difilter berdasarkan modul (`module_target` wajib, `question_type = 'pre_test'`).
+     * Kelola Post-Test (`/admin/posttest-questions`): bank soal umum terpisah
+       tanpa keterikatan modul (`question_type = 'post_test'`, `module_target = null`).
+2. Migrasi Penuh Frontend ke Inertia.js v3 + React 19 + TypeScript + Tailwind v4:
+   - Seluruh halaman Blade lama dihapus dan dimigrasikan menjadi 27 halaman SPA
+     Inertia React TypeScript dengan mengadaptasi kerangka TailAdmin React
+     (`AppLayout`, bilah samping responsif desktop/seluler, pengalih tema terang
+     dan gelap, komponen UI `@base-ui/react`, dan grafik ApexCharts) serta arah
+     visual editorial pada `DESIGN.md` untuk halaman publik dan autentikasi.
+   - Pembaca Flipbook PDF (`pdfjs-dist` + `page-flip`) ditulis ulang sebagai
+     komponen React terisolasi (`PdfFlipbookViewer.tsx`) yang dimuat secara lazy
+     dengan dukungan revalidasi cache versi berkas (`?v=...`).
+3. Paritas Penuh REST API (`/api/v1`):
+   - Endpoint Pre-Test per modul memfilter bank soal `pre_test`, pencatatan
+     progres subbab memperbarui `all_modules_completed_at`, endpoint baru
+     `/api/v1/posttest` (`/status`, `GET`, `POST`) menerapkan kunci masa tunggu
+     3 hari dan perhitungan N-Gain, endpoint lama `/api/v1/modules/{id}/posttest`
+     mengembalikan `410 Gone`, serta penambahan CRUD API Admin untuk bank soal
+     Pre-Test dan Post-Test beserta pembaruan `API_DOCUMENTATION.md`.
+
+================================================================================
+2. PERUBAHAN BASIS DATA, MODEL, & LAYANAN EVALUASI
+================================================================================
+- Migrasi Baru:
+  database/migrations/2026_11_25_143139_update_evaluation_flow_and_question_types.php
+  * Menambahkan kolom `question_type` (`pre_test` | `post_test`, default `pre_test`)
+    beserta indeks komposit `(question_type, module_target)` pada tabel `test_questions`.
+  * Mengubah kolom `module_target` pada `test_questions` menjadi nullable untuk
+    mendukung soal Post-Test umum tanpa label modul.
+  * Menambahkan kolom `all_modules_completed_at` (timestamp, nullable) pada
+    tabel `users` dan mengisi otomatis cap waktu bagi pengguna lama yang telah
+    menuntaskan seluruh modul.
+
+- Model & Seeder:
+  * app/Models/TestQuestion.php: penambahan atribut fillable `question_type` dan
+    scope `preTestForModule(int $moduleNumber)` serta `postTestGeneral()`.
+  * app/Models/User.php: cast datetime `all_modules_completed_at` dan konstanta
+    `POSTTEST_DELAY_DAYS = 3`.
+  * database/seeders/DatabaseSeeder.php: penyediaan bank soal `pre_test` per
+    modul (Modul 1 s.d. 4) dan bank soal `post_test` umum terpisah, serta sampel
+    responden untuk skenario masa tunggu 3 hari dan evaluasi selesai.
+
+- Layanan Kelayakan & Ekspor Evaluasi:
+  * app/Services/EvaluationEligibilityService.php: satu sumber kebenaran untuk
+    status kelengkapan seluruh modul, sinkronisasi `all_modules_completed_at`,
+    perhitungan waktu buka Post-Test (`+72 jam`), sisa detik hitung mundur,
+    status `locked_incomplete` / `waiting_delay` / `ready` / `completed`, serta
+    perhitungan skor rata-rata Pre-Test dan Indeks N-Gain Hake (1998).
+  * Pembaruan sinkronisasi dan ekspor pada `GoogleSheetsSyncService.php`,
+    `PostTestExcelExportService.php`, dan `ModuleTopicPdfService.php` (header
+    `Cache-Control: private, no-cache, must-revalidate` untuk pembaruan PDF).
+
+================================================================================
+3. CONTROLLER WEB, REQUEST VALIDASI, & RUTE INERTIA
+================================================================================
+- Konfigurasi & Middleware Inertia:
+  * config/inertia.php (SSR dinonaktifkan untuk kompatibilitas shared hosting/lokal,
+    registrasi direktori halaman `resources/js/Pages`).
+  * app/Http/Middleware/HandleInertiaRequests.php (berbagi prop `auth.user`,
+    status ringkas `posttestGate` mahasiswa, dan pesan `flash` ke seluruh halaman).
+  * bootstrap/app.php & resources/views/app.blade.php (satu-satunya root view Blade).
+
+- Controller & Form Request Baru / Diperbarui:
+  * app/Http/Controllers/AdminTestQuestionController.php
+  * app/Http/Requests/StorePretestQuestionRequest.php
+  * app/Http/Requests/StorePosttestQuestionRequest.php
+  * app/Http/Controllers/EvaluationController.php (Pre-Test per modul dan
+    Post-Test akhir terpadu +3 hari tanpa logout paksa).
+  * Konversi penuh ke `Inertia::render(...)` pada:
+    `LandingController`, `AuthController`, `ProfileController`,
+    `MahasiswaDashboardController`, `EducationalModuleController`,
+    `DosenDashboardController`, `PosterController`, `SelfCareController`,
+    `ForumController`, `CaseStudyController`, `GamificationController`,
+    `AdminDashboardController`, `AdminUserController`, `AdminModuleController`,
+    `AdminEvaluationController`, `AdminSheetController`, `AdminPosterController`.
+
+- Rute Web Baru / Diubah (`routes/web.php`):
+  * GET    /posttest                         (posttest.show)
+  * POST   /posttest                         (posttest.submit)
+  * GET    /modules/{id}/posttest            -> redirect 301 ke /posttest
+  * GET    /admin/pretest-questions          (admin.pretest-questions.index)
+  * POST   /admin/pretest-questions          (admin.pretest-questions.store)
+  * PUT    /admin/pretest-questions/{id}     (admin.pretest-questions.update)
+  * DELETE /admin/pretest-questions/{id}     (admin.pretest-questions.destroy)
+  * GET    /admin/posttest-questions         (admin.posttest-questions.index)
+  * POST   /admin/posttest-questions         (admin.posttest-questions.store)
+  * PUT    /admin/posttest-questions/{id}    (admin.posttest-questions.update)
+  * DELETE /admin/posttest-questions/{id}    (admin.posttest-questions.destroy)
+
+================================================================================
+4. ARSITEKTUR FRONTEND INERTIA + REACT TYPESCRIPT
+================================================================================
+- Paket Baru (`composer.json` & `package.json`):
+  * Backend : `inertiajs/inertia-laravel` (^3.8)
+  * Frontend: `@inertiajs/react` (^3.11), `react` (^19.2), `react-dom` (^19.2),
+    `@base-ui/react` (^1.8), `apexcharts` (^7.8), `react-apexcharts` (^2.1),
+    `@vitejs/plugin-react` (^4.4), `typescript` (~5.8), `@tailwindcss/forms`,
+    `tw-animate-css`.
+- Konfigurasi Build:
+  * `tsconfig.json` (strict mode + path alias `@/*` -> `resources/js/*`).
+  * `vite.config.js` (pemisahan bundel `flipbook-vendor` dan `charts-vendor`).
+  * `resources/css/app.css` (token warna `DESIGN.md` + TailAdmin semantic scale,
+    dukungan dark mode `.dark`, aturan `prefers-reduced-motion`, dan fokus keyboard).
+- Struktur Komponen & 27 Halaman (`resources/js/`):
+  * Layout: `layouts/AppLayout.tsx` (adaptasi TailAdmin: sidebar collapsible
+    desktop, drawer seluler, pengalih tema terang/gelap, menu peran Mahasiswa /
+    Dosen PA / Super Admin) dan `layouts/AuthLayout.tsx` (gaya editorial kertas
+    hangat dengan aksen motif tenun Besemah).
+  * Komponen Inti: `components/ui/*` (17 primitif aksesibel),
+    `components/flipbook/PdfFlipbookViewer.tsx`, dan
+    `components/admin/questions/QuestionDialogs.tsx`.
+  * Halaman (`resources/js/Pages/`):
+    - Publik & Auth: `Welcome`, `Auth/Login`, `Auth/Register`, `Auth/Biodata`,
+      `Profile/Edit`.
+    - Pembelajaran & Evaluasi: `Mahasiswa/Dashboard`, `Modules/Index`,
+      `Modules/Show`, `Modules/Topic`, `Evaluation/ModulePretest`,
+      `Evaluation/Posttest`, `Dosen/Dashboard`.
+    - Layanan & Aktivitas Mahasiswa: `Posters/Index`, `SelfCare/Index`,
+      `SelfCare/BloodGuide`, `SelfCare/HygieneGuide`, `Forum/Index`,
+      `Forum/Create`, `Forum/Show`, `Cases/Index`, `Cases/Show`,
+      `Gamification/Trivia`, `Gamification/MythFact`, `Gamification/Diary`.
+    - Super Admin: `Admin/Dashboard`, `Admin/Users/Index`, `Admin/Modules/Index`,
+      `Admin/PretestQuestions/Index`, `Admin/PosttestQuestions/Index`,
+      `Admin/Evaluations/Index`, `Admin/Evaluations/Show`, `Admin/Sheets/Index`,
+      `Admin/Posters/Index`.
+- Seluruh 33 berkas Blade lama dan skrip lama (`resources/js/app.js`,
+  `resources/js/flipbook.js`) telah dihapus.
+
+================================================================================
+5. PARITAS REST API v1 & DOKUMENTASI API
+================================================================================
+- Controller API Baru / Diperbarui:
+  * `app/Http/Controllers/Api/EvaluationApiController.php`:
+    - `GET  /api/v1/modules/{id}/pretest` & `POST /api/v1/modules/{id}/pretest`
+      (hanya memuat dan menilai soal `question_type = 'pre_test'` modul terkait).
+    - `GET  /api/v1/posttest/status` (status kelayakan, cap waktu selesai modul,
+      waktu buka +3 hari, hitung mundur detik, dan ringkasan skor N-Gain).
+    - `GET  /api/v1/posttest` (`403` dengan kode `MODULES_INCOMPLETE` atau
+      `POSTTEST_DELAY_ACTIVE` sebelum 72 jam; `200` daftar soal saat terbuka).
+    - `POST /api/v1/posttest` (simpan 1x Post-Test akhir, kembalikan `pre_score_avg`,
+      `post_score`, `n_gain`, dan `kategori` tanpa mencabut token Sanctum).
+    - `GET|POST /api/v1/modules/{id}/posttest` -> `410 Gone` (`ENDPOINT_DEPRECATED`).
+  * `app/Http/Controllers/Api/AdminTestQuestionApiController.php`:
+    - CRUD penuh `/api/v1/admin/pretest-questions` (dengan filter `?module=`)
+      dan `/api/v1/admin/posttest-questions` (khusus peran `admin`).
+  * Pembaruan respons pada `Api/ModuleController.php` dan `Api/DashboardController.php`
+    serta dokumentasi lengkap di `API_DOCUMENTATION.md`.
+
+================================================================================
+6. PENGUJIAN & VERIFIKASI
+================================================================================
+- Pengujian Otomatis Baru:
+  * `tests/Feature/EvaluationDelayedPosttestAndAdminQuestionsTest.php` (menguji
+    gating Pre-Test per modul, pencatatan `all_modules_completed_at`, kunci masa
+    tunggu 72 jam dan buka otomatis setelah `travel(3)->days()`, perhitungan
+    N-Gain tanpa logout, pemisahan CRUD soal Pre-Test vs Post-Test Admin, serta
+    seluruh endpoint REST API v1 baru termasuk status `410 Gone`).
+- Pembaruan Suite Feature Test Eksisting:
+  * Seluruh feature test disesuaikan ke assertion Inertia (`AssertableInertia`)
+    dan aturan evaluasi baru.
+- Hasil Verifikasi:
+  * TypeScript (`npx tsc --noEmit`)         : LULUS (0 error).
+  * Vite Production Build (`npx vite build`): LULUS (945 modul terkompilasi).
+  * Laravel Pint (`vendor/bin/pint --dirty`): LULUS.
+  * PHPUnit (`php artisan test --compact`)  : LULUS (112 tes, 1.003 assertion).
+  * Audit Kontras WCAG AA (`contrast-check`): LULUS (seluruh pasangan >= 4.5:1).
+  * Uji Klik Peramban Nyata (Desktop 1280x900 & Mobile 375x812, Mode Terang &
+    Gelap): LULUS dengan 0 console error, 0 HTTP error, dan 0 overflow horizontal.
+
+================================================================================
+7. CATATAN DEPLOYMENT / LOKAL
+================================================================================
+Jalankan perintah berikut pada lingkungan dengan layanan MySQL aktif:
+  composer install
+  npm install
+  php artisan migrate --seed
+  npm run build

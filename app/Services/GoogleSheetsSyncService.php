@@ -49,7 +49,7 @@ class GoogleSheetsSyncService
      */
     public static function syncPosttestSubmission(User $user, EvaluationResponse $posttest, $nGain): GoogleSheetSyncLog
     {
-        $pretest = EvaluationResponse::where('user_id', $user->id)->where('type', 'pre_test')->latest()->first();
+        $preScore = app(EvaluationEligibilityService::class)->calculateAggregatePretestScore($user);
 
         $payload = [
             'timestamp' => now()->toIso8601String(),
@@ -58,7 +58,7 @@ class GoogleSheetsSyncService
             'usia' => $user->usia ?? 18,
             'jenis_kelamin' => $user->gender === 'L' ? 'Laki-laki' : 'Perempuan',
             'program_studi' => $user->prodi ?? '-',
-            'skor_pretest' => $pretest ? $pretest->total_score : 0,
+            'skor_pretest' => $preScore,
             'skor_posttest' => $posttest->total_score,
             'n_gain_score' => $nGain,
             'kategori_efektivitas' => $nGain >= 0.7 ? 'Tinggi' : ($nGain >= 0.3 ? 'Sedang' : 'Rendah'),

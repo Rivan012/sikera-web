@@ -5,148 +5,106 @@ namespace App\Http\Controllers;
 use App\Models\EducationalModule;
 use App\Models\EvaluationResponse;
 use App\Models\TestQuestion;
+use App\Services\EvaluationEligibilityService;
 use App\Services\GoogleSheetsSyncService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class EvaluationController extends Controller
 {
-    /**
-     * Tampilan Pre-Test Awal / Umum
-     */
-    public function showPretest()
+    public function showPretest(): RedirectResponse
     {
-        $user = Auth::user();
-
-        if ($user->pretest_completed) {
-            return redirect()->route('mahasiswa.dashboard')->with('info', 'Anda telah menyelesaikan Pre-Test.');
-        }
-
-        $questions = TestQuestion::all();
-
-        return view('evaluation.pretest', compact('questions'));
+        return redirect()->route('modules.index')
+            ->with('info', 'Pre-Test dikerjakan pada masing-masing modul sebelum membuka materi modul tersebut.');
     }
 
-    public function submitPretest(Request $request)
+    public function submitPretest(): RedirectResponse
+    {
+        return redirect()->route('modules.index');
+    }
+
+    public function showModulePretest(int $moduleId): Response|RedirectResponse
     {
         $user = Auth::user();
-        $questions = TestQuestion::all();
+        $module = EducationalModule::findOrFail($moduleId);
 
-        $rules = [];
-        foreach ($questions as $q) {
-            $rules['q_'.$q->id] = 'required|string';
-        }
-        $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan evaluasi.',
-        ]);
+        if ($user->isMahasiswa()) {
+            $existingPretest = EvaluationResponse::where('user_id', $user->id)
+                ->where('type', 'pre_test')
+                ->where('module_number', $module->module_number)
+                ->first();
 
-        $rawAnswers = [];
-        $correctCount = 0;
-        $moduleStats = [
-            1 => ['correct' => 0, 'total' => 0],
-            2 => ['correct' => 0, 'total' => 0],
-            3 => ['correct' => 0, 'total' => 0],
-            4 => ['correct' => 0, 'total' => 0],
-        ];
-
-        foreach ($questions as $q) {
-            $ans = $request->input('q_'.$q->id);
-            $rawAnswers[$q->id] = $ans;
-
-            $moduleStats[$q->module_target]['total']++;
-            if (strtoupper($ans) === strtoupper($q->correct_answer)) {
-                $correctCount++;
-                $moduleStats[$q->module_target]['correct']++;
+            if ($existingPretest) {
+                return redirect()->route('modules.show', $module->id)
+                    ->with('info', 'Anda telah menyelesaikan Pre-Test Modul '.$module->module_number.'. Silakan pelajari materi.');
             }
         }
 
-        $totalQuestions = count($questions);
-        $totalScore = $totalQuestions > 0 ? round(($correctCount / $totalQuestions) * 100) : 0;
+        $questions = TestQuestion::preTest()
+            ->where('module_target', $module->module_number)
+            ->orderBy('id')
+            ->get();
 
-        $scoresPerModule = [];
-        foreach ($moduleStats as $mod => $stat) {
-            $scoresPerModule['Modul '.$mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
+        if ($questions->isEmpty()) {
+            $questions = TestQuestion::preTest()->orderBy('id')->get();
         }
 
-        $pretest = EvaluationResponse::create([
-            'user_id' => $user->id,
-            'type' => 'pre_test',
-            'module_number' => null,
-            'raw_answers' => $rawAnswers,
-            'scores_per_module' => $scoresPerModule,
-            'total_score' => $totalScore,
-            'submitted_at' => now(),
+        return Inertia::render('Evaluation/ModulePretest', [
+            'module' => [
+                'id' => $module->id,
+                'module_number' => $module->module_number,
+                'title' => $module->title,
+                'subtitle' => $module->subtitle,
+                'estimated_time' => $module->estimated_time,
+            ],
+            'questions' => $questions->map(fn (TestQuestion $q): array => [
+                'id' => $q->id,
+                'question_text' => $q->question_text,
+                'options' => $q->options,
+            ]),
         ]);
-
-        $user->update([
-            'pretest_completed' => true,
-            'points' => $user->points + 50,
-        ]);
-
-        GoogleSheetsSyncService::syncPretestSubmission($user, $pretest);
-
-        return redirect()->route('mahasiswa.dashboard')->with('success', 'Pre-Test awal berhasil diselesaikan! Skor awal: '.$totalScore.'/100. Selamat belajar.');
     }
 
-    /**
-     * Tampilan Pre-Test Khusus Modul Tertentu (Gating sebelum buka materi modul)
-     */
-    public function showModulePretest($moduleId)
+    public function submitModulePretest(Request $request, int $moduleId): RedirectResponse
     {
         $user = Auth::user();
         $module = EducationalModule::findOrFail($moduleId);
 
-        // Cek apakah user sudah menyelesaikan Pre-Test modul ini
-        $existingPretest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'pre_test')
-            ->where('module_number', $module->module_number)
-            ->first();
-
-        if ($existingPretest) {
-            return redirect()->route('modules.show', $module->id)
-                ->with('info', 'Anda telah menyelesaikan Pre-Test untuk Modul '.$module->module_number.'. Silakan pelajari materi.');
-        }
-
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
-
-        // Jika tidak ada soal khusus modul, gunakan soal umum
-        if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
-        }
-
-        return view('evaluation.module_pretest', compact('module', 'questions'));
-    }
-
-    public function submitModulePretest(Request $request, $moduleId)
-    {
-        $user = Auth::user();
-        $module = EducationalModule::findOrFail($moduleId);
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
+        $questions = TestQuestion::preTest()
+            ->where('module_target', $module->module_number)
+            ->orderBy('id')
+            ->get();
 
         if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
+            $questions = TestQuestion::preTest()->orderBy('id')->get();
         }
 
-        $rules = [];
-        foreach ($questions as $q) {
-            $rules['q_'.$q->id] = 'required|string';
+        $submittedAnswers = $this->extractAnswers($request, $questions);
+
+        if (count($submittedAnswers) < $questions->count()) {
+            return back()->withErrors([
+                'answers' => 'Mohon jawab seluruh pertanyaan Pre-Test Modul '.$module->module_number.' sebelum melanjutkan.',
+            ]);
         }
-        $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan Pre-Test Modul '.$module->module_number.' sebelum melanjutkan.',
-        ]);
 
         $rawAnswers = [];
         $correctCount = 0;
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_'.$q->id);
+            $ans = strtoupper((string) ($submittedAnswers[$q->id] ?? ''));
             $rawAnswers[$q->id] = $ans;
-            if (strtoupper($ans) === strtoupper($q->correct_answer)) {
+            if ($ans !== '' && $ans === strtoupper($q->correct_answer)) {
                 $correctCount++;
             }
         }
 
-        $totalScore = count($questions) > 0 ? round(($correctCount / count($questions)) * 100) : 0;
+        $totalScore = $questions->isNotEmpty()
+            ? (int) round(($correctCount / $questions->count()) * 100)
+            : 0;
 
         $pretest = EvaluationResponse::create([
             'user_id' => $user->id,
@@ -163,167 +121,114 @@ class EvaluationController extends Controller
 
         GoogleSheetsSyncService::syncPretestSubmission($user, $pretest);
 
-        return redirect()->route('modules.show', $module->id)->with('success', 'Pre-Test Modul '.$module->module_number.' selesai (Skor: '.$totalScore.'/100). Materi kini terbuka untuk dipelajari!');
+        return redirect()->route('modules.show', $module->id)
+            ->with('success', 'Pre-Test Modul '.$module->module_number.' selesai (Skor: '.$totalScore.'/100). Materi modul kini terbuka.');
     }
 
-    /**
-     * Tampilan Post-Test Khusus Modul Tertentu (Setelah selesai semua materi modul)
-     */
-    public function showModulePosttest($moduleId)
+    public function showModulePosttest(): RedirectResponse
     {
-        $user = Auth::user();
-        $module = EducationalModule::findOrFail($moduleId);
-
-        $pretest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'pre_test')
-            ->where(function ($q) use ($module) {
-                $q->where('module_number', $module->module_number)
-                    ->orWhereNull('module_number');
-            })
-            ->latest()
-            ->first();
-
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
-        if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
-        }
-
-        return view('evaluation.module_posttest', compact('module', 'questions', 'pretest'));
+        return redirect()->route('posttest.show')
+            ->with('info', 'Post-Test dikerjakan secara terpadu 3 hari setelah seluruh modul selesai dipelajari.');
     }
 
-    public function submitModulePosttest(Request $request, $moduleId)
+    public function submitModulePosttest(): RedirectResponse
+    {
+        return redirect()->route('posttest.show');
+    }
+
+    public function showPosttest(EvaluationEligibilityService $eligibility): Response
     {
         $user = Auth::user();
-        $module = EducationalModule::findOrFail($moduleId);
-        $questions = TestQuestion::where('module_target', $module->module_number)->get();
+        $gate = $eligibility->syncAllModulesCompletion($user);
+        $preScore = $eligibility->calculateAggregatePretestScore($user);
 
-        if ($questions->isEmpty()) {
-            $questions = TestQuestion::all();
+        $questions = [];
+        if ($gate['is_posttest_unlocked']) {
+            $questionModels = TestQuestion::postTest()->orderBy('id')->get();
+            if ($questionModels->isEmpty()) {
+                $questionModels = TestQuestion::orderBy('id')->get();
+            }
+
+            $questions = $questionModels->map(fn (TestQuestion $q): array => [
+                'id' => $q->id,
+                'question_text' => $q->question_text,
+                'options' => $q->options,
+            ])->all();
         }
 
-        $rules = [];
-        foreach ($questions as $q) {
-            $rules['q_'.$q->id] = 'required|string';
-        }
-        $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan Post-Test Modul '.$module->module_number.'.',
+        $modulesProgress = EducationalModule::with(['topics:id,educational_module_id'])
+            ->orderBy('module_number')
+            ->get()
+            ->map(function (EducationalModule $m) use ($user): array {
+                $topicIds = $m->topics->pluck('id');
+                $done = $topicIds->isEmpty()
+                    ? 0
+                    : $user->moduleProgresses()->whereIn('module_topic_id', $topicIds)->where('is_completed', true)->count();
+
+                return [
+                    'id' => $m->id,
+                    'module_number' => $m->module_number,
+                    'title' => $m->title,
+                    'completed_topics' => $done,
+                    'total_topics' => $topicIds->count(),
+                    'is_completed' => $topicIds->isNotEmpty() && $done >= $topicIds->count(),
+                ];
+            });
+
+        return Inertia::render('Evaluation/Posttest', [
+            'gate' => $gate,
+            'preScore' => $preScore,
+            'questions' => $questions,
+            'modulesProgress' => $modulesProgress,
         ]);
+    }
+
+    public function submitPosttest(Request $request, EvaluationEligibilityService $eligibility): RedirectResponse
+    {
+        $user = Auth::user();
+        $gate = $eligibility->syncAllModulesCompletion($user);
+
+        if ($user->isMahasiswa() && ! $gate['is_posttest_unlocked']) {
+            abort(403, 'Post-Test belum dapat dikerjakan. Selesaikan seluruh modul dan tunggu 3 hari sejak penyelesaian modul terakhir.');
+        }
+
+        $questions = TestQuestion::postTest()->orderBy('id')->get();
+        if ($questions->isEmpty()) {
+            $questions = TestQuestion::orderBy('id')->get();
+        }
+
+        $submittedAnswers = $this->extractAnswers($request, $questions);
+
+        if (count($submittedAnswers) < $questions->count()) {
+            return back()->withErrors([
+                'answers' => 'Mohon jawab seluruh pertanyaan instrumen evaluasi Post-Test.',
+            ]);
+        }
 
         $rawAnswers = [];
         $correctCount = 0;
 
         foreach ($questions as $q) {
-            $ans = $request->input('q_'.$q->id);
+            $ans = strtoupper((string) ($submittedAnswers[$q->id] ?? ''));
             $rawAnswers[$q->id] = $ans;
-            if (strtoupper($ans) === strtoupper($q->correct_answer)) {
+            if ($ans !== '' && $ans === strtoupper($q->correct_answer)) {
                 $correctCount++;
             }
         }
 
-        $postScore = count($questions) > 0 ? round(($correctCount / count($questions)) * 100) : 0;
+        $postScore = $questions->isNotEmpty()
+            ? (int) round(($correctCount / $questions->count()) * 100)
+            : 0;
 
-        $pretest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'pre_test')
-            ->where(function ($q) use ($module) {
-                $q->where('module_number', $module->module_number)
-                    ->orWhereNull('module_number');
-            })
-            ->latest()
-            ->first();
-
-        $preScore = $pretest ? $pretest->total_score : 0;
-
-        $nGain = 0;
-        if ((100 - $preScore) > 0) {
-            $nGain = round(($postScore - $preScore) / (100 - $preScore), 3);
-        }
-
-        $posttest = EvaluationResponse::create([
-            'user_id' => $user->id,
-            'type' => 'post_test',
-            'module_number' => $module->module_number,
-            'raw_answers' => $rawAnswers,
-            'scores_per_module' => ['Modul '.$module->module_number => $postScore],
-            'total_score' => $postScore,
-            'n_gain_score' => $nGain,
-            'submitted_at' => now(),
-        ]);
-
-        $user->increment('points', 50);
-        $user->update(['posttest_completed' => true]);
-
-        GoogleSheetsSyncService::syncPosttestSubmission($user, $posttest, $nGain);
-
-        return redirect()->route('modules.index')->with('success', 'Selamat! Anda telah menyelesaikan Post-Test Modul '.$module->module_number.' (Skor: '.$postScore.', N-Gain: '.$nGain.'). Nilai telah tersimpan ke sistem penelitian.');
-    }
-
-    /**
-     * Tampilan Post-Test Akhir Sesi
-     */
-    public function showPosttest()
-    {
-        $user = Auth::user();
-        $questions = TestQuestion::all();
-        $pretest = EvaluationResponse::where('user_id', $user->id)->where('type', 'pre_test')->latest()->first();
-
-        return view('evaluation.posttest', compact('questions', 'pretest'));
-    }
-
-    public function submitPosttest(Request $request)
-    {
-        $user = Auth::user();
-        $questions = TestQuestion::all();
-
-        $rules = [];
-        foreach ($questions as $q) {
-            $rules['q_'.$q->id] = 'required|string';
-        }
-        $request->validate($rules, [
-            'required' => 'Mohon jawab seluruh pertanyaan instrumen evaluasi Post-Test.',
-        ]);
-
-        $rawAnswers = [];
-        $correctCount = 0;
-        $moduleStats = [
-            1 => ['correct' => 0, 'total' => 0],
-            2 => ['correct' => 0, 'total' => 0],
-            3 => ['correct' => 0, 'total' => 0],
-            4 => ['correct' => 0, 'total' => 0],
-        ];
-
-        foreach ($questions as $q) {
-            $ans = $request->input('q_'.$q->id);
-            $rawAnswers[$q->id] = $ans;
-
-            $moduleStats[$q->module_target]['total']++;
-            if (strtoupper($ans) === strtoupper($q->correct_answer)) {
-                $correctCount++;
-                $moduleStats[$q->module_target]['correct']++;
-            }
-        }
-
-        $totalQuestions = count($questions);
-        $postScore = $totalQuestions > 0 ? round(($correctCount / $totalQuestions) * 100) : 0;
-
-        $scoresPerModule = [];
-        foreach ($moduleStats as $mod => $stat) {
-            $scoresPerModule['Modul '.$mod] = $stat['total'] > 0 ? round(($stat['correct'] / $stat['total']) * 100) : 0;
-        }
-
-        $pretest = EvaluationResponse::where('user_id', $user->id)->where('type', 'pre_test')->latest()->first();
-        $preScore = $pretest ? $pretest->total_score : 0;
-
-        $nGain = 0;
-        if ((100 - $preScore) > 0) {
-            $nGain = round(($postScore - $preScore) / (100 - $preScore), 3);
-        }
+        $preScore = $eligibility->calculateAggregatePretestScore($user);
+        $nGain = $eligibility->calculateNGain($preScore, (float) $postScore);
 
         $posttest = EvaluationResponse::create([
             'user_id' => $user->id,
             'type' => 'post_test',
             'module_number' => null,
             'raw_answers' => $rawAnswers,
-            'scores_per_module' => $scoresPerModule,
+            'scores_per_module' => null,
             'total_score' => $postScore,
             'n_gain_score' => $nGain,
             'submitted_at' => now(),
@@ -331,15 +236,34 @@ class EvaluationController extends Controller
 
         $user->update([
             'posttest_completed' => true,
-            'points' => $user->points + 100,
+            'points' => (int) $user->points + 100,
         ]);
 
         GoogleSheetsSyncService::syncPosttestSubmission($user, $posttest, $nGain);
 
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        return redirect()->route('posttest.show')
+            ->with('success', 'Post-Test berhasil diselesaikan (Skor Akhir: '.$postScore.'/100, N-Gain: '.$nGain.').');
+    }
 
-        return redirect()->route('login')->with('success', 'Post-Test berhasil diselesaikan dan Nilai Akhir & N-Gain telah diperbarui ke Google Sheets (Skor: '.$postScore.', N-Gain: '.$nGain.'). Sesi keluar berhasil.');
+    /**
+     * @param  Collection<int, TestQuestion>  $questions
+     * @return array<int, string>
+     */
+    private function extractAnswers(Request $request, $questions): array
+    {
+        $answersPayload = $request->input('answers');
+        $resolved = [];
+
+        foreach ($questions as $q) {
+            $val = is_array($answersPayload) && isset($answersPayload[$q->id])
+                ? $answersPayload[$q->id]
+                : $request->input('q_'.$q->id);
+
+            if (is_string($val) && trim($val) !== '') {
+                $resolved[$q->id] = trim($val);
+            }
+        }
+
+        return $resolved;
     }
 }

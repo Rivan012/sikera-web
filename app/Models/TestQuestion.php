@@ -2,11 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class TestQuestion extends Model
 {
+    public const TYPE_PRETEST = 'pre_test';
+
+    public const TYPE_POSTTEST = 'post_test';
+
     protected $fillable = [
+        'question_type',
         'module_target',
         'question_text',
         'options',
@@ -15,20 +21,32 @@ class TestQuestion extends Model
     ];
 
     protected $casts = [
+        'module_target' => 'integer',
         'options' => 'array',
     ];
 
     /**
-     * Pastikan format opsi selalu terstandarisasi sebagai array of objects:
-     * [
-     *     ['label' => 'A', 'text' => '...'],
-     *     ['label' => 'B', 'text' => '...'],
-     * ]
-     *
-     * @param  mixed  $value
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopePreTest(Builder $query): Builder
+    {
+        return $query->where('question_type', self::TYPE_PRETEST);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopePostTest(Builder $query): Builder
+    {
+        return $query->where('question_type', self::TYPE_POSTTEST);
+    }
+
+    /**
      * @return array<int, array{label: string, text: string}>
      */
-    public function getOptionsAttribute($value): array
+    public function getOptionsAttribute(mixed $value): array
     {
         $raw = is_string($value) ? json_decode($value, true) : $value;
 
@@ -36,8 +54,6 @@ class TestQuestion extends Model
     }
 
     /**
-     * Accessor eksplisit untuk mendapatkan opsi yang terformat rapi
-     *
      * @return array<int, array{label: string, text: string}>
      */
     public function getFormattedOptionsAttribute(): array
@@ -46,8 +62,6 @@ class TestQuestion extends Model
     }
 
     /**
-     * Normalisasi format opsi fleksibel (baik dari Excel, JSON seeder, atau input manual)
-     *
      * @return array<int, array{label: string, text: string}>
      */
     public static function normalizeOptions(mixed $rawOptions): array
@@ -69,18 +83,13 @@ class TestQuestion extends Model
         $index = 0;
 
         foreach ($rawOptions as $key => $val) {
-            // Kasus 1: Opsi sudah berupa array/map dengan 'label' dan 'text'
             if (is_array($val) && (isset($val['label']) || isset($val['text']))) {
                 $label = strtoupper(trim((string) ($val['label'] ?? chr(65 + $index))));
                 $text = trim((string) ($val['text'] ?? ''));
-            }
-            // Kasus 2: Associative array format Excel / Bank Soal ('A' => 'Teks Opsi A')
-            elseif (is_string($key) && ! is_numeric($key)) {
+            } elseif (is_string($key) && ! is_numeric($key)) {
                 $label = strtoupper(trim($key));
                 $text = is_string($val) ? trim($val) : (string) json_encode($val);
-            }
-            // Kasus 3: Numeric array (0 => 'Teks Opsi A')
-            else {
+            } else {
                 $label = chr(65 + $index);
                 $text = is_string($val) ? trim($val) : (string) json_encode($val);
             }

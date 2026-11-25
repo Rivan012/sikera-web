@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ModulePdfFlipbookTest extends TestCase
@@ -293,10 +294,13 @@ class ModulePdfFlipbookTest extends TestCase
         $pageResponse = $this->actingAs($this->mahasiswa)
             ->get(route('modules.topic', [$module->id, $topic->id]));
 
-        $pageResponse->assertOk();
-        $pageResponse->assertSee('data-sikera-flipbook', false);
-        $pageResponse->assertSee(route('modules.topic.pdf', [$module->id, $topic->id]), false);
-        $pageResponse->assertSee('materi-flipbook.pdf');
+        $pageResponse->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Modules/Topic')
+                ->where('hasPdfFile', true)
+                ->where('pdfUrl', route('modules.topic.pdf', [$module->id, $topic->id]))
+                ->where('topic.pdf_original_name', 'materi-flipbook.pdf')
+            );
 
         $pdfResponse = $this->actingAs($this->mahasiswa)
             ->get(route('modules.topic.pdf', [$module->id, $topic->id]));
@@ -326,9 +330,13 @@ class ModulePdfFlipbookTest extends TestCase
         $pageResponse = $this->actingAs($this->admin)
             ->get(route('modules.topic', [$module->id, $topic->id]));
 
-        $pageResponse->assertOk();
-        $pageResponse->assertDontSee('data-sikera-flipbook', false);
-        $pageResponse->assertSee('Isi materi HTML lama tetap terbaca.');
+        $pageResponse->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Modules/Topic')
+                ->where('hasPdfFile', false)
+                ->where('pdfUrl', null)
+                ->where('topic.content_html', '<p>Isi materi HTML lama tetap terbaca.</p>')
+            );
 
         $this->actingAs($this->admin)
             ->get(route('modules.topic.pdf', [$module->id, $topic->id]))

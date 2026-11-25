@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\EducationalModule;
+use App\Models\ModuleProgress;
+use App\Models\ModuleTopic;
 use App\Models\TestQuestion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
@@ -19,28 +22,22 @@ class AlurSistemSikeraTest extends TestCase
         $this->seed();
     }
 
-    public function test_akses_awal_redirect_ke_login(): void
+    public function test_akses_awal_merender_landing_inertia(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
-        $response->assertSee('SIKERA');
-        $response->assertSee(route('login'), false);
-        $response->assertSee(route('register'), false);
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Welcome'));
     }
 
     public function test_halaman_masuk_bisa_diakses_langsung(): void
     {
-        $response = $this->get('/login');
-        $response->assertStatus(200);
-        $response->assertSee('SIKERA');
-        $response->assertSee('Alamat Email');
-        $response->assertSee('Kata Sandi');
+        $this->get('/login')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/Login'));
     }
 
     public function test_login_otomatis_mengarahkan_sesuai_role(): void
     {
-        // 1. Login Mahasiswa -> diarahkan ke dashboard mahasiswa
         $mhsResponse = $this->post('/login', [
             'email' => 'sample1@unib.ac.id',
             'password' => 'password',
@@ -49,7 +46,6 @@ class AlurSistemSikeraTest extends TestCase
 
         $this->post('/force-logout');
 
-        // 2. Login Dosen PA -> diarahkan ke dashboard dosen
         $dosenResponse = $this->post('/login', [
             'email' => 'dosen@unib.ac.id',
             'password' => 'password',
@@ -58,7 +54,6 @@ class AlurSistemSikeraTest extends TestCase
 
         $this->post('/force-logout');
 
-        // 3. Login Super Admin -> diarahkan ke dashboard admin
         $adminResponse = $this->post('/login', [
             'email' => 'admin@sikera.id',
             'password' => 'password',
@@ -72,10 +67,9 @@ class AlurSistemSikeraTest extends TestCase
     #[TestWith([null])]
     public function test_pendaftaran_mahasiswa_baru_dengan_biodata_lengkap(?string $fakultas): void
     {
-        $form = $this->get(route('register'))->assertOk();
-        if ($fakultas !== null) {
-            $form->assertSee('value="'.$fakultas.'"', false);
-        }
+        $this->get(route('register'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/Register'));
 
         $response = $this->post('/register', [
             'name' => 'Bunga Santoso',
@@ -100,167 +94,187 @@ class AlurSistemSikeraTest extends TestCase
         $this->assertTrue($user->is_biodata_filled);
         $this->assertFalse($user->pretest_completed);
 
-        // Langsung diarahkan ke Menu Utama Mahasiswa (tanpa pre-test di awal registrasi)
         $response->assertRedirect(route('mahasiswa.dashboard'));
     }
 
     public function test_pretest_modul_dikerjakan_sebelum_mengakses_materi_modul(): void
     {
-        $mhs = User::where('email', 'mhs@unib.ac.id')->first();
+        $mhs = User::where('email', 'mhs@unib.ac.id')->firstOrFail();
         $this->actingAs($mhs);
 
-        $module1 = EducationalModule::where('module_number', 1)->first();
+        $module1 = EducationalModule::where('module_number', 1)->firstOrFail();
 
-        // 1. Coba akses modul 1 sebelum pretest -> diredirect ke pretest modul
-        $response = $this->get("/modules/{$module1->id}");
-        $response->assertRedirect(route('modules.pretest.show', $module1->id));
+        $this->get("/modules/{$module1->id}")
+            ->assertRedirect(route('modules.pretest.show', $module1->id));
 
-        // 2. Akses halaman Pre-Test Modul 1
-        $pretestPage = $this->get("/modules/{$module1->id}/pretest");
-        $pretestPage->assertStatus(200);
-        $pretestPage->assertSee('Pre-Test Modul 1');
+        $this->get("/modules/{$module1->id}/pretest")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Evaluation/ModulePretest')
+                ->where('module.module_number', 1)
+            );
 
-        // 3. Submit Pre-Test Modul 1
-        $questions = TestQuestion::where('module_target', 1)->get();
-        $payload = ['_token' => csrf_token()];
+        $questions = TestQuestion::preTest()->where('module_target', 1)->get();
+        $answers = [];
         foreach ($questions as $q) {
-            $payload['q_'.$q->id] = $q->correct_answer;
+            $answers[$q->id] = $q->correct_answer;
         }
 
-        $submitResp = $this->post("/modules/{$module1->id}/pretest", $payload);
-        $submitResp->assertRedirect(route('modules.show', $module1->id));
+        $this->post("/modules/{$module1->id}/pretest", ['answers' => $answers])
+            ->assertRedirect(route('modules.show', $module1->id));
 
-        // 4. Setelah Pre-Test modul 1 selesai, sekarang bisa mengakses materi modul 1!
-        $modulePage = $this->get("/modules/{$module1->id}");
-        $modulePage->assertStatus(200);
-        $modulePage->assertSee($module1->title);
+        $this->get("/modules/{$module1->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Modules/Show')
+                ->where('module.title', $module1->title)
+            );
     }
 
-    public function test_posttest_modul_dikerjakan_setelah_selesai_materi(): void
+    public function test_posttest_terpadu_terbuka_3_hari_setelah_seluruh_modul_selesai(): void
     {
-        $mhs = User::where('email', 'sample1@unib.ac.id')->first();
+        $mhs = User::where('email', 'mhs@unib.ac.id')->firstOrFail();
         $this->actingAs($mhs);
 
-        $module1 = EducationalModule::where('module_number', 1)->first();
+        $module1 = EducationalModule::where('module_number', 1)->firstOrFail();
+        $this->get("/modules/{$module1->id}/posttest")
+            ->assertRedirect(route('posttest.show'));
 
-        // 1. Buka halaman Post-Test Modul 1
-        $posttestPage = $this->get("/modules/{$module1->id}/posttest");
-        $posttestPage->assertStatus(200);
-        $posttestPage->assertSee('Post-Test Modul 1');
-
-        // 2. Submit Post-Test Modul 1
-        $questions = TestQuestion::where('module_target', 1)->get();
-        $payload = ['_token' => csrf_token()];
-        foreach ($questions as $q) {
-            $payload['q_'.$q->id] = $q->correct_answer;
+        foreach (ModuleTopic::all() as $topic) {
+            ModuleProgress::updateOrCreate(
+                ['user_id' => $mhs->id, 'module_topic_id' => $topic->id],
+                ['is_completed' => true, 'completed_at' => now()]
+            );
         }
 
-        $submitResp = $this->post("/modules/{$module1->id}/posttest", $payload);
-        $submitResp->assertRedirect(route('modules.index'));
+        $this->get('/posttest')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Evaluation/Posttest')
+                ->where('gate.state', 'waiting_delay')
+                ->where('gate.is_posttest_unlocked', false)
+            );
 
+        $this->travel(3)->days();
+        $this->travel(1)->minutes();
+
+        $this->get('/posttest')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Evaluation/Posttest')
+                ->where('gate.state', 'ready')
+                ->where('gate.is_posttest_unlocked', true)
+            );
+
+        $questions = TestQuestion::postTest()->get();
+        $answers = [];
+        foreach ($questions as $q) {
+            $answers[$q->id] = $q->correct_answer;
+        }
+
+        $this->post('/posttest', ['answers' => $answers])
+            ->assertRedirect(route('posttest.show'));
+
+        $this->assertAuthenticatedAs($mhs);
         $this->assertDatabaseHas('evaluation_responses', [
             'user_id' => $mhs->id,
             'type' => 'post_test',
-            'module_number' => 1,
+            'module_number' => null,
             'total_score' => 100,
         ]);
     }
 
     public function test_kalender_haid_hanya_untuk_perempuan(): void
     {
-        // 1. Mahasiswa Perempuan (Aisyah - P) -> dapat melihat & mencatat haid
-        $mhsP = User::where('email', 'mhs@unib.ac.id')->first();
+        $mhsP = User::where('email', 'mhs@unib.ac.id')->firstOrFail();
         $this->actingAs($mhsP);
 
-        $responseP = $this->get('/selfcare');
-        $responseP->assertStatus(200);
-        $responseP->assertSee('Pelacak Siklus Haid');
+        $this->get('/selfcare')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('SelfCare/Index')
+                ->where('isFemale', true)
+            );
 
-        $storeP = $this->post('/selfcare/period', [
+        $this->post('/selfcare/period', [
             'start_date' => now()->format('Y-m-d'),
             'cycle_length' => 28,
             'period_duration' => 5,
             'flow_level' => 'sedang',
             'flow_color' => 'Merah Terang',
             'nrs_pain_score' => 3,
-        ]);
-        $storeP->assertRedirect(route('selfcare.index'));
+        ])->assertRedirect(route('selfcare.index'));
         $this->assertDatabaseHas('period_logs', ['user_id' => $mhsP->id]);
 
         $this->post('/force-logout');
 
-        // 2. Mahasiswa Laki-laki (Sample 2 - L) -> tab haid disembunyikan & tolak submit haid
-        $mhsL = User::where('email', 'sample2@unib.ac.id')->first();
+        $mhsL = User::where('email', 'sample2@unib.ac.id')->firstOrFail();
         $this->actingAs($mhsL);
 
-        $responseL = $this->get('/selfcare');
-        $responseL->assertStatus(200);
-        $responseL->assertDontSee('Pelacak Siklus Haid');
-        $responseL->assertSee('Kalkulator IMT &amp; Status Gizi', false);
+        $this->get('/selfcare')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('SelfCare/Index')
+                ->where('isFemale', false)
+            );
 
-        $storeL = $this->post('/selfcare/period', [
+        $this->post('/selfcare/period', [
             'start_date' => now()->format('Y-m-d'),
             'cycle_length' => 28,
             'period_duration' => 5,
             'flow_level' => 'sedang',
             'flow_color' => 'Merah Terang',
             'nrs_pain_score' => 3,
-        ]);
-        // Ditolak dan dialihkan kembali dengan warning
-        $storeL->assertRedirect(route('selfcare.index'));
+        ])->assertRedirect(route('selfcare.index'));
         $this->assertDatabaseMissing('period_logs', ['user_id' => $mhsL->id]);
     }
 
     public function test_alur_super_admin_dashboard_grafik(): void
     {
-        $admin = User::where('role', 'admin')->first();
-        $this->actingAs($admin);
-
-        $response = $this->get('/admin/dashboard');
-        $response->assertStatus(200);
-        $response->assertSee('Dashboard Grafik');
-        $response->assertSee('Grafik Peningkatan Pemahaman');
-        $response->assertSee('Tingkat Efektivitas (N-Gain)');
+        $admin = User::where('role', 'admin')->firstOrFail();
+        $this->actingAs($admin)
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('scoresByModule')
+                ->has('avgNGain')
+            );
     }
 
     public function test_superadmin_dapat_melihat_dan_memfilter_halaman_daftar_user(): void
     {
-        $admin = User::where('role', 'admin')->first();
-        $this->actingAs($admin);
-
-        $mhs = User::where('email', 'mhs@unib.ac.id')->first();
-        $allResponse = $this->get('/admin/users?role=all');
-        $allResponse->assertStatus(200);
-        $allResponse->assertSee('Daftar Pengguna');
-        if ($mhs) {
-            $allResponse->assertSee($mhs->name);
-        }
-        $allResponse->assertSee('Dr. Rina Novita');
+        $admin = User::where('role', 'admin')->firstOrFail();
+        $this->actingAs($admin)
+            ->get('/admin/users?role=all')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Users/Index')
+                ->where('roleFilter', 'all')
+            );
     }
 
     public function test_superadmin_dapat_mengakses_dan_mengelola_modul(): void
     {
-        $admin = User::where('role', 'admin')->first();
-        $this->actingAs($admin);
-
-        $indexResponse = $this->get('/admin/modules');
-        $indexResponse->assertStatus(200);
-        $indexResponse->assertSee('Unggah Modul Edukasi Baru');
+        $admin = User::where('role', 'admin')->firstOrFail();
+        $this->actingAs($admin)
+            ->get('/admin/modules')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Modules/Index'));
     }
 
     public function test_superadmin_dapat_mengakses_halaman_lembar_data_google_sheets(): void
     {
-        $admin = User::where('role', 'admin')->first();
-        $this->actingAs($admin);
-
-        $response = $this->get('/admin/sheets');
-        $response->assertStatus(200);
-        $response->assertSee('Lembar Data Google Sheets');
+        $admin = User::where('role', 'admin')->firstOrFail();
+        $this->actingAs($admin)
+            ->get('/admin/sheets')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Sheets/Index'));
     }
 
-    public function test_halaman_pretest_dan_posttest_dapat_merender_soal_dengan_format_opsi_apapun(): void
+    public function test_halaman_pretest_dapat_merender_soal_dengan_format_opsi_apapun(): void
     {
-        $mhs = User::where('email', 'mhs@unib.ac.id')->first();
+        $mhs = User::where('email', 'mhs@unib.ac.id')->firstOrFail();
         $this->actingAs($mhs);
 
         $module = EducationalModule::create([
@@ -272,6 +286,7 @@ class AlurSistemSikeraTest extends TestCase
         ]);
 
         TestQuestion::create([
+            'question_type' => TestQuestion::TYPE_PRETEST,
             'module_target' => 999,
             'question_text' => 'Berapa usia reproduksi sehat menurut BKKBN?',
             'options' => [
@@ -284,16 +299,11 @@ class AlurSistemSikeraTest extends TestCase
             'explanation' => 'Penjelasan usia reproduksi sehat.',
         ]);
 
-        // Verifikasi halaman Pre-Test Modul dapat dirender tanpa TypeError
-        $pretestResp = $this->get("/modules/{$module->id}/pretest");
-        $pretestResp->assertStatus(200);
-        $pretestResp->assertSee('21 tahun perempuan dan 25 tahun laki-laki');
-        $pretestResp->assertSee('Pre-Test Modul 999');
-
-        // Verifikasi halaman Post-Test Modul dapat dirender tanpa TypeError
-        $posttestResp = $this->get("/modules/{$module->id}/posttest");
-        $posttestResp->assertStatus(200);
-        $posttestResp->assertSee('21 tahun perempuan dan 25 tahun laki-laki');
-        $posttestResp->assertSee('Post-Test Modul 999');
+        $this->get("/modules/{$module->id}/pretest")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Evaluation/ModulePretest')
+                ->where('questions.0.options.0.text', '21 tahun perempuan dan 25 tahun laki-laki')
+            );
     }
 }

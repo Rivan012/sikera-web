@@ -6,12 +6,13 @@ use App\Models\CaseStudy;
 use App\Models\EducationalModule;
 use App\Models\EmergencyHotline;
 use App\Models\KesproFeed;
-use Illuminate\Contracts\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Throwable;
 
 class LandingController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(): Response
     {
         $modules = [];
         $posters = [];
@@ -164,7 +165,7 @@ class LandingController extends Controller
             ],
         ];
 
-        return view('welcome', [
+        return Inertia::render('Welcome', [
             'modules' => $modules,
             'totalTopicsCount' => $totalTopicsCount,
             'posters' => $posters,

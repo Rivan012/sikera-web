@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CaseStudy;
+use Inertia\Inertia;
 
 class CaseStudyController extends Controller
 {
@@ -10,13 +11,13 @@ class CaseStudyController extends Controller
     {
         $caseStudies = CaseStudy::all();
 
-        return view('cases.index', compact('caseStudies'));
+        return Inertia::render('Cases/Index', compact('caseStudies'));
     }
 
     public function show($id)
     {
-        $case = CaseStudy::findOrFail($id);
+        $caseStudy = CaseStudy::findOrFail($id);
 
-        return view('cases.show', compact('case'));
+        return Inertia::render('Cases/Show', ['caseStudy' => $caseStudy]);
     }
 }

@@ -7,11 +7,13 @@ use App\Models\EvaluationResponse;
 use App\Models\ModuleProgress;
 use App\Models\ModuleTopic;
 use App\Models\User;
+use App\Services\EvaluationEligibilityService;
 use App\Services\ModuleTopicPdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EducationalModuleController extends Controller
@@ -31,7 +33,7 @@ class EducationalModuleController extends Controller
             ->exists();
     }
 
-    public function index(): View
+    public function index(EvaluationEligibilityService $eligibility): Response
     {
         $user = Auth::user();
         $modules = EducationalModule::with(['topics:id,educational_module_id,pdf_path'])
@@ -46,7 +48,7 @@ class EducationalModuleController extends Controller
             ->pluck('module_topic_id')
             ->flip();
 
-        $moduleStats = [];
+        $moduleItems = [];
         foreach ($modules as $module) {
             $completedCount = $module->topics->filter(
                 fn (ModuleTopic $topic): bool => $completedTopicIds->has($topic->id)
@@ -57,33 +59,33 @@ class EducationalModuleController extends Controller
             )->count();
 
             $hasPretest = $this->hasCompletedPretest($user, $module);
-
-            $posttest = EvaluationResponse::where('user_id', $user->id)
-                ->where('type', 'post_test')
-                ->where('module_number', $module->module_number)
-                ->latest()
-                ->first();
-
-            $percentage = $module->topics_count > 0 ? round(($completedCount / $module->topics_count) * 100) : 0;
+            $percentage = $module->topics_count > 0 ? (int) round(($completedCount / $module->topics_count) * 100) : 0;
             $allTopicsDone = ($completedCount >= $module->topics_count) && $module->topics_count > 0;
 
-            $moduleStats[$module->id] = [
+            $moduleItems[] = [
+                'id' => $module->id,
+                'module_number' => $module->module_number,
+                'title' => $module->title,
+                'subtitle' => $module->subtitle,
+                'description' => $module->description,
+                'banner_image' => $module->banner_image ?: '/images/banners/banner-module-'.(($module->module_number % 4) ?: 4).'.svg',
+                'estimated_time' => $module->estimated_time,
                 'completed' => $completedCount,
                 'total' => $module->topics_count,
                 'pdf_count' => $pdfCount,
                 'percentage' => $percentage,
                 'has_pretest' => $hasPretest,
                 'all_topics_done' => $allTopicsDone,
-                'has_posttest' => (bool) $posttest,
-                'posttest_score' => $posttest ? $posttest->total_score : null,
-                'n_gain' => $posttest ? $posttest->n_gain_score : null,
             ];
         }
 
-        return view('modules.index', compact('modules', 'moduleStats'));
+        return Inertia::render('Modules/Index', [
+            'modules' => $moduleItems,
+            'posttestGate' => $eligibility->syncAllModulesCompletion($user),
+        ]);
     }
 
-    public function show(int $id): View|RedirectResponse
+    public function show(int $id, EvaluationEligibilityService $eligibility): Response|RedirectResponse
     {
         $user = Auth::user();
         $module = EducationalModule::with(['topics' => fn ($q) => $q->orderBy('order_index')])->findOrFail($id);
@@ -101,17 +103,40 @@ class EducationalModuleController extends Controller
 
         $allTopicsDone = count($completedTopicIds) >= $module->topics->count() && $module->topics->count() > 0;
 
-        $posttest = EvaluationResponse::where('user_id', $user->id)
-            ->where('type', 'post_test')
-            ->where('module_number', $module->module_number)
-            ->latest()
-            ->first();
+        $topics = $module->topics->map(fn (ModuleTopic $topic): array => [
+            'id' => $topic->id,
+            'topic_code' => $topic->topic_code,
+            'title' => $topic->title,
+            'has_pdf' => $topic->hasPdf(),
+            'pdf_size_label' => $topic->formattedPdfSize(),
+            'has_video' => filled($topic->youtube_video_id),
+            'is_completed' => in_array($topic->id, $completedTopicIds, true),
+        ]);
 
-        return view('modules.show', compact('module', 'completedTopicIds', 'allTopicsDone', 'posttest'));
+        return Inertia::render('Modules/Show', [
+            'module' => [
+                'id' => $module->id,
+                'module_number' => $module->module_number,
+                'title' => $module->title,
+                'subtitle' => $module->subtitle,
+                'description' => $module->description,
+                'banner_image' => $module->banner_image ?: '/images/banners/banner-module-'.(($module->module_number % 4) ?: 4).'.svg',
+                'estimated_time' => $module->estimated_time,
+                'topics_count' => $module->topics->count(),
+                'pdf_count' => $module->topics->filter(fn (ModuleTopic $t): bool => $t->hasPdf())->count(),
+            ],
+            'topics' => $topics,
+            'allTopicsDone' => $allTopicsDone,
+            'posttestGate' => $eligibility->syncAllModulesCompletion($user),
+        ]);
     }
 
-    public function showTopic(int $moduleId, int $topicId, ModuleTopicPdfService $pdfService): View|RedirectResponse
-    {
+    public function showTopic(
+        int $moduleId,
+        int $topicId,
+        ModuleTopicPdfService $pdfService,
+        EvaluationEligibilityService $eligibility
+    ): Response|RedirectResponse {
         $user = Auth::user();
         $module = EducationalModule::findOrFail($moduleId);
         $topic = ModuleTopic::where('educational_module_id', $moduleId)->findOrFail($topicId);
@@ -131,32 +156,51 @@ class EducationalModuleController extends Controller
             $user->increment('points', 10);
         }
 
+        $posttestGate = $eligibility->syncAllModulesCompletion($user);
+
         $allTopics = ModuleTopic::where('educational_module_id', $moduleId)->orderBy('order_index')->get();
         $currentIndex = $allTopics->search(fn (ModuleTopic $t): bool => $t->id === $topic->id);
         $prevTopic = $currentIndex > 0 ? $allTopics[$currentIndex - 1] : null;
         $nextTopic = $currentIndex < $allTopics->count() - 1 ? $allTopics[$currentIndex + 1] : null;
 
-        $completedTopicIds = ModuleProgress::where('user_id', $user->id)
-            ->whereIn('module_topic_id', $allTopics->pluck('id'))
-            ->where('is_completed', true)
-            ->pluck('module_topic_id')
-            ->toArray();
-
-        $allTopicsCompleted = count($completedTopicIds) >= $allTopics->count();
         $hasPdfFile = $pdfService->exists($topic->pdf_path);
         $pdfUrl = $hasPdfFile ? route('modules.topic.pdf', [$module->id, $topic->id]) : null;
 
-        return view('modules.topic', compact(
-            'module',
-            'topic',
-            'allTopics',
-            'completedTopicIds',
-            'prevTopic',
-            'nextTopic',
-            'allTopicsCompleted',
-            'hasPdfFile',
-            'pdfUrl'
-        ));
+        return Inertia::render('Modules/Topic', [
+            'module' => [
+                'id' => $module->id,
+                'module_number' => $module->module_number,
+                'title' => $module->title,
+            ],
+            'topic' => [
+                'id' => $topic->id,
+                'topic_code' => $topic->topic_code,
+                'title' => $topic->title,
+                'pdf_original_name' => $topic->pdf_original_name,
+                'pdf_size_label' => $topic->formattedPdfSize(),
+                'pdf_version' => (string) ($topic->updated_at?->timestamp ?? $topic->pdf_size ?? 1),
+                'youtube_video_id' => $topic->youtube_video_id,
+                'content_html' => $topic->content_html,
+            ],
+            'allTopics' => $allTopics->map(fn (ModuleTopic $item): array => [
+                'id' => $item->id,
+                'topic_code' => $item->topic_code,
+                'title' => $item->title,
+            ]),
+            'prevTopic' => $prevTopic ? [
+                'id' => $prevTopic->id,
+                'topic_code' => $prevTopic->topic_code,
+                'title' => $prevTopic->title,
+            ] : null,
+            'nextTopic' => $nextTopic ? [
+                'id' => $nextTopic->id,
+                'topic_code' => $nextTopic->topic_code,
+                'title' => $nextTopic->title,
+            ] : null,
+            'hasPdfFile' => $hasPdfFile,
+            'pdfUrl' => $pdfUrl,
+            'posttestGate' => $posttestGate,
+        ]);
     }
 
     public function streamTopicPdf(

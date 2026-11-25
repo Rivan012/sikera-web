@@ -4,14 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\KesproFeed;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class AdminPosterController extends Controller
 {
     public function index()
     {
+        if (! Auth::check() || ! Auth::user()->isAdmin()) {
+            abort(403);
+        }
+
         $posters = KesproFeed::latest()->get();
 
-        return view('admin.posters.index', compact('posters'));
+        return Inertia::render('Admin/Posters/Index', compact('posters'));
     }
 
     public function store(Request $request)

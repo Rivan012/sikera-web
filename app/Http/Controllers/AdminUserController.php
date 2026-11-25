@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class AdminUserController extends Controller
 {
@@ -46,7 +47,7 @@ class AdminUserController extends Controller
         $totalDosenUsers = User::where('role', 'dosen_pa')->count();
         $totalAdminUsers = User::where('role', 'admin')->count();
 
-        return view('admin.users.index', compact(
+        return Inertia::render('Admin/Users/Index', compact(
             'users',
             'roleFilter',
             'searchQuery',

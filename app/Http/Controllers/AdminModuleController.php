@@ -16,7 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
@@ -29,7 +30,7 @@ class AdminModuleController extends Controller
         }
     }
 
-    public function index(): View
+    public function index(): InertiaResponse
     {
         $this->authorizeAdmin();
 
@@ -42,7 +43,32 @@ class AdminModuleController extends Controller
             fn (EducationalModule $m): int => $m->topics->filter(fn (ModuleTopic $t): bool => $t->hasPdf())->count()
         );
 
-        return view('admin.modules.index', compact('modules', 'totalTopics', 'pdfTopicsCount'));
+        $moduleItems = $modules->map(fn (EducationalModule $m): array => [
+            'id' => $m->id,
+            'module_number' => $m->module_number,
+            'title' => $m->title,
+            'subtitle' => $m->subtitle,
+            'description' => $m->description,
+            'banner_image' => $m->banner_image ?: '/images/banners/banner-module-'.(($m->module_number % 4) ?: 4).'.svg',
+            'raw_banner_image' => $m->banner_image,
+            'estimated_time' => $m->estimated_time,
+            'topics' => $m->topics->map(fn (ModuleTopic $tp): array => [
+                'id' => $tp->id,
+                'topic_code' => $tp->topic_code,
+                'title' => $tp->title,
+                'youtube_video_id' => $tp->youtube_video_id,
+                'has_pdf' => $tp->hasPdf(),
+                'pdf_original_name' => $tp->pdf_original_name,
+                'pdf_size_label' => $tp->formattedPdfSize(),
+            ]),
+        ]);
+
+        return Inertia::render('Admin/Modules/Index', [
+            'modules' => $moduleItems,
+            'totalTopics' => $totalTopics,
+            'pdfTopicsCount' => $pdfTopicsCount,
+            'nextModuleNumber' => ((int) $modules->max('module_number')) + 1,
+        ]);
     }
 
     public function store(
@@ -224,7 +250,7 @@ class AdminModuleController extends Controller
         $title = $module->title;
         $pdfPaths = $module->topics->pluck('pdf_path')->filter()->all();
 
-        TestQuestion::where('module_target', $moduleNumber)->delete();
+        TestQuestion::preTest()->where('module_target', $moduleNumber)->delete();
         $module->delete();
 
         foreach ($pdfPaths as $path) {

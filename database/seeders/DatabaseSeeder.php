@@ -104,6 +104,7 @@ class DatabaseSeeder extends Seeder
                 'is_biodata_filled' => true,
                 'pretest_completed' => true,
                 'posttest_completed' => true,
+                'all_modules_completed_at' => now()->subDays(4),
                 'points' => rand(60, 200),
                 'streak_days' => rand(1, 7),
                 'password' => Hash::make('password'),
@@ -386,7 +387,88 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($questions as $q) {
-            TestQuestion::create($q);
+            TestQuestion::create([
+                'question_type' => TestQuestion::TYPE_PRETEST,
+                ...$q,
+            ]);
+        }
+
+        // 3b. Bank Soal Evaluasi Post-Test Umum (Tanpa label modul, terbuka 3 hari setelah semua modul tuntas)
+        $posttestQuestions = [
+            [
+                'question_text' => 'Mengapa membasuh area genitalia perempuan wajib dilakukan dari arah depan ke belakang?',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Agar sabun antiseptik masuk lebih merata ke liang vagina'],
+                    ['label' => 'B', 'text' => 'Mencegah bakteri saluran cerna dari anus berpindah ke uretra dan vagina'],
+                    ['label' => 'C', 'text' => 'Mempercepat berhentinya peluruhan darah menstruasi'],
+                    ['label' => 'D', 'text' => 'Hanya kebiasaan turun-temurun tanpa alasan medis'],
+                ],
+                'correct_answer' => 'B',
+                'explanation' => 'Arah basuhan depan ke belakang menghindarkan bakteri E. Coli dari area anus menginfeksi saluran kemih maupun vagina.',
+            ],
+            [
+                'question_text' => 'Kapan gumpalan darah menstruasi memerlukan pemeriksaan segera ke fasilitas kesehatan?',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Saat berwarna merah terang di hari pertama haid'],
+                    ['label' => 'B', 'text' => 'Saat berwarna cokelat gelap menjelang akhir siklus'],
+                    ['label' => 'C', 'text' => 'Saat gumpalan besar disertai bau menyengat, demam, atau pembalut penuh tiap 1 sampai 2 jam'],
+                    ['label' => 'D', 'text' => 'Saat siklus berlangsung selama 28 hari'],
+                ],
+                'correct_answer' => 'C',
+                'explanation' => 'Perdarahan sangat deras (menoragia, PBAC >= 100) atau disertai tanda infeksi sistemik merupakan indikasi rujukan medis.',
+            ],
+            [
+                'question_text' => 'Manakah ciri utama komunikasi asertif dalam menjaga batasan diri pada relasi mahasiswa?',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Mengikuti seluruh kemauan pasangan demi menghindari pertengkaran'],
+                    ['label' => 'B', 'text' => 'Menyampaikan penolakan dan batasan pribadi secara tegas, jujur, serta tanpa kekerasan'],
+                    ['label' => 'C', 'text' => 'Membalas tekanan pasangan dengan ancaman balik di media sosial'],
+                    ['label' => 'D', 'text' => 'Membiarkan pasangan memegang kata sandi seluruh akun pribadi sebagai bukti cinta'],
+                ],
+                'correct_answer' => 'B',
+                'explanation' => 'Komunikasi asertif menyatakan batasan pribadi secara lugas tanpa bersikap pasif maupun agresif.',
+            ],
+            [
+                'question_text' => 'Apa langkah perlindungan hukum dan psikologis paling tepat jika mengalami ancaman penyebaran konten intim (KBGO) di kampus?',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Menghapus seluruh bukti percakapan dan menuruti permintaan pelaku'],
+                    ['label' => 'B', 'text' => 'Menyimpan bukti tangkapan layar ancaman, memutus kontak, dan melapor ke Satgas PPKS kampus'],
+                    ['label' => 'C', 'text' => 'Mengirimkan uang tebusan agar pelaku berjanji menghapus foto'],
+                    ['label' => 'D', 'text' => 'Menyebarkan identitas pelaku tanpa bukti ke forum publik'],
+                ],
+                'correct_answer' => 'B',
+                'explanation' => 'Bukti digital diperlukan untuk tindak lanjut UU TPKS melalui pendampingan resmi Satgas PPKS.',
+            ],
+            [
+                'question_text' => 'Mengapa banyak kasus Infeksi Menular Seksual (IMS) tidak disadari oleh penderitanya pada tahap awal?',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Karena sebagian besar IMS bersifat asimtomatik (tanpa gejala awal yang tampak)'],
+                    ['label' => 'B', 'text' => 'Karena bakteri dan virus IMS sembuh sendiri dalam 24 jam'],
+                    ['label' => 'C', 'text' => 'Karena IMS hanya menular melalui penggunaan toilet umum'],
+                    ['label' => 'D', 'text' => 'Karena IMS hanya menyerang orang berusia di atas 40 tahun'],
+                ],
+                'correct_answer' => 'A',
+                'explanation' => 'Sejumlah IMS seperti Klamidia, HPV, dan HIV fase awal sering tidak bergejala namun tetap menular dan berisiko menyebabkan komplikasi jangka panjang.',
+            ],
+            [
+                'question_text' => 'Upaya pencegahan stunting yang efektif dilakukan sejak masa remaja putri sebelum menikah adalah...',
+                'options' => [
+                    ['label' => 'A', 'text' => 'Diet ketat rendah protein agar berat badan turun drastis'],
+                    ['label' => 'B', 'text' => 'Pemenuhan gizi tinggi protein hewani, zat besi, serta konsumsi Tablet Tambah Darah (TTD) untuk mencegah anemia dan KEK'],
+                    ['label' => 'C', 'text' => 'Menghindari olahraga selama masa perkuliahan'],
+                    ['label' => 'D', 'text' => 'Menikah di bawah usia 19 tahun'],
+                ],
+                'correct_answer' => 'B',
+                'explanation' => 'Status gizi baik dan bebas anemia pada remaja putri mencegah Kekurangan Energi Kronis (KEK) serta risiko bayi berat lahir rendah (BBLR) dan stunting.',
+            ],
+        ];
+
+        foreach ($posttestQuestions as $pq) {
+            TestQuestion::create([
+                'question_type' => TestQuestion::TYPE_POSTTEST,
+                'module_target' => null,
+                ...$pq,
+            ]);
         }
 
         // 4. Case Studies Kampus

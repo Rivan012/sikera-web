@@ -8,6 +8,7 @@ use App\Services\MenstrualCycleCalculatorService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class PeriodPredictionScientificTest extends TestCase
@@ -223,11 +224,11 @@ class PeriodPredictionScientificTest extends TestCase
 
         $response = $this->actingAs($this->femaleUser)->get(route('selfcare.index'));
 
-        $response->assertStatus(200);
-        $response->assertSee('Perkiraan Siklus Haid');
-        $response->assertSee('Jendela Masa Subur (6 Hari)');
-        $response->assertSee('Simulasi &amp; Kalkulator Siklus Mandiri', false);
-        $response->assertDontSee('Wilcox et al. (NEJM 1995)');
-        $response->assertDontSee('ACOG &amp; WHO', false);
+        $response->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('SelfCare/Index')
+                ->where('isFemale', true)
+                ->where('prediction.predictions.fertile_window.total_days', 6)
+            );
     }
 }

@@ -97,7 +97,7 @@ Content-Type: application/json
 ## 2. Beranda & Menu Utama (`/api/v1/dashboard`)
 
 - **Method & URL**: `GET /api/v1/dashboard` *(Auth Required)*
-- **Deskripsi**: Mengambil seluruh ringkasan data beranda (profil ringkas, status 4 modul, poster unggulan, data haid/IMT terakhir).
+- **Deskripsi**: Mengambil seluruh ringkasan data beranda (profil ringkas, status modul beserta Pre-Test per modul, status gerbang Post-Test terpadu 3 hari, poster unggulan, dan data haid/IMT terakhir).
 - **Response `200 OK`**:
   ```json
   {
@@ -114,9 +114,25 @@ Content-Type: application/json
           "completed_topics": 2,
           "progress_percentage": 50,
           "has_pretest": true,
-          "has_posttest": false
+          "has_posttest": false,
+          "n_gain": null
         }
       ],
+      "posttest_gate": {
+        "state": "locked_incomplete",
+        "total_modules": 4,
+        "completed_modules": 0,
+        "total_topics": 16,
+        "completed_topics": 2,
+        "all_modules_completed": false,
+        "all_modules_completed_at": null,
+        "posttest_available_at": null,
+        "is_posttest_unlocked": false,
+        "remaining_seconds": 0,
+        "delay_days": 3,
+        "has_completed_posttest": false,
+        "latest_posttest": null
+      },
       "posters": [ ... ],
       "selfcare": {
         "is_female": true,
@@ -129,13 +145,20 @@ Content-Type: application/json
 
 ---
 
-## 3. Modul Edukasi & Pre-Test / Post-Test (`/api/v1/modules`)
+## 3. Modul Edukasi, Flipbook PDF, & Evaluasi (`/api/v1/modules` & `/api/v1/posttest`)
+
+Alur evaluasi SIKERA mengikuti protokol bertahap:
+1. **Pre-Test per Modul**: Dikerjakan tepat sebelum membuka daftar submateri dan flipbook PDF modul terkait.
+2. **Penyelesaian Seluruh Submateri**: Ketika seluruh subbab di semua modul aktif selesai dibaca, sistem mencatat timestamp `all_modules_completed_at`.
+3. **Post-Test Terpadu (Jeda 3 Hari / 72 Jam)**: Satu Post-Test umum (`module_target = null`) terbuka otomatis pada `all_modules_completed_at + 3 hari`. Skor N-Gain dihitung dari perbandingan skor total rata-rata Pre-Test seluruh modul terhadap skor total Post-Test, dan token autentikasi tetap aktif setelah pengiriman.
 
 ### 3.1. Daftar Semua Modul
 - **Method & URL**: `GET /api/v1/modules` *(Auth Required)*
+- Mengembalikan array `modules` beserta objek `posttest_gate`.
 
 ### 3.2. Detail Modul & Daftar Submateri
 - **Method & URL**: `GET /api/v1/modules/{id}` *(Auth Required)*
+- Setiap item `topics` memuat `has_pdf`, `pdf_url` (`/api/v1/modules/{id}/topic/{topicId}/pdf`), `pdf_original_name`, `pdf_size`, `is_completed`, dan `is_locked`.
 
 ### Banner Modul (Publik)
 - **Method & URL**: `GET /api/v1/modules/{id}/banner`
@@ -143,6 +166,7 @@ Content-Type: application/json
 
 ### 3.3. Ambil Soal Pre-Test Modul
 - **Method & URL**: `GET /api/v1/modules/{id}/pretest` *(Auth Required)*
+- **Deskripsi**: Mengambil butir soal `question_type = 'pre_test'` yang ditargetkan untuk modul tersebut (`module_target`).
 - **Response `200 OK`**:
   ```json
   {
@@ -150,13 +174,18 @@ Content-Type: application/json
     "data": {
       "module_id": 1,
       "module_number": 1,
+      "module_title": "Anatomi, Fisiologi, & Higienitas Reproduksi",
+      "total_questions": 2,
       "questions": [
         {
           "id": 1,
+          "module_target": 1,
           "question_text": "Arah yang benar saat membersihkan...",
           "options": [
             { "label": "A", "text": "..." },
-            { "label": "B", "text": "..." }
+            { "label": "B", "text": "..." },
+            { "label": "C", "text": "..." },
+            { "label": "D", "text": "..." }
           ]
         }
       ]
@@ -164,7 +193,7 @@ Content-Type: application/json
   }
   ```
 
-### 3.4. Submit Pre-Test Modul (Membuka Akses Materi)
+### 3.4. Submit Pre-Test Modul (Membuka Akses Materi & Flipbook PDF)
 - **Method & URL**: `POST /api/v1/modules/{id}/pretest` *(Auth Required)*
 - **Request Body**:
   ```json
@@ -181,15 +210,21 @@ Content-Type: application/json
     "success": true,
     "message": "Pre-Test Modul 1 selesai! Akses materi telah dibuka.",
     "data": {
+      "module_id": 1,
+      "module_number": 1,
+      "total_questions": 2,
+      "correct_answers": 2,
       "score": 100,
       "points_earned": 25
     }
   }
   ```
 
-### 3.5. Baca Submateri (HTML & YouTube Video)
-- **Method & URL**: `GET /api/v1/modules/{moduleId}/topic/{topicId}` *(Auth Required)*
-- **Response `200 OK`**:
+### 3.5. Baca Submateri & Streaming Berkas PDF Flipbook
+- **Method & URL Metadata**: `GET /api/v1/modules/{moduleId}/topic/{topicId}` *(Auth Required)*
+- **Method & URL Streaming PDF**: `GET /api/v1/modules/{moduleId}/topic/{topicId}/pdf` *(Auth Required, mengembalikan binary `application/pdf` dengan header CORS untuk pembaca flipbook)*
+- **Catatan**: Mengembalikan `403 Forbidden` (`requires_pretest: true`) apabila mahasiswa belum mengerjakan Pre-Test modul terkait. Saat seluruh subbab di semua modul selesai dibaca, `posttest_gate.all_modules_completed_at` otomatis terisi.
+- **Response Metadata `200 OK`**:
   ```json
   {
     "success": true,
@@ -198,27 +233,88 @@ Content-Type: application/json
         "id": 1,
         "topic_code": "1.1",
         "title": "Pengenalan Anatomi Organ Reproduksi Pria & Wanita",
+        "format": "pdf_flipbook",
+        "has_pdf": true,
+        "pdf_url": "http://localhost:8000/api/v1/modules/1/topic/1/pdf",
+        "pdf_original_name": "subbab-1-1.pdf",
+        "pdf_size": 245760,
         "youtube_video_id": "v3F4QW_h32M",
         "youtube_embed_url": "https://www.youtube.com/embed/v3F4QW_h32M",
-        "content_html": "<p>Sistem reproduksi manusia...</p>"
+        "content_html": null
       },
       "points_earned": 10,
-      "ready_for_posttest": false
+      "all_topics_completed": false,
+      "ready_for_posttest": false,
+      "posttest_gate": { ... }
     }
   }
   ```
 
-### 3.6. Ambil Soal Post-Test Modul
-- **Method & URL**: `GET /api/v1/modules/{id}/posttest` *(Auth Required)*
+### 3.6. Cek Status & Hitung Mundur 3 Hari Post-Test Terpadu
+- **Method & URL**: `GET /api/v1/posttest/status` *(Auth Required)*
+- **Response `200 OK`**:
+  ```json
+  {
+    "success": true,
+    "message": "Status kelayakan Post-Test berhasil dimuat.",
+    "data": {
+      "pretest_average_score": 75.0,
+      "posttest_gate": {
+        "state": "waiting_delay",
+        "total_modules": 4,
+        "completed_modules": 4,
+        "total_topics": 16,
+        "completed_topics": 16,
+        "all_modules_completed": true,
+        "all_modules_completed_at": "2026-11-25T10:00:00+07:00",
+        "posttest_available_at": "2026-11-28T10:00:00+07:00",
+        "is_posttest_unlocked": false,
+        "remaining_seconds": 259200,
+        "delay_days": 3,
+        "has_completed_posttest": false,
+        "latest_posttest": null
+      }
+    }
+  }
+  ```
 
-### 3.7. Submit Post-Test Modul (Hitung N-Gain)
-- **Method & URL**: `POST /api/v1/modules/{id}/posttest` *(Auth Required)*
+### 3.7. Ambil Soal Post-Test Terpadu
+- **Method & URL**: `GET /api/v1/posttest` *(Auth Required)*
+- **Response `403 Forbidden`** (jika modul belum selesai atau masih dalam masa jeda 3 hari):
+  - `reason`: `"modules_incomplete"` atau `"waiting_period"`, disertai `data.posttest_gate`.
+- **Response `200 OK`** (setelah melewati jeda 3 hari):
+  ```json
+  {
+    "success": true,
+    "message": "Soal Post-Test berhasil dimuat.",
+    "data": {
+      "pretest_average_score": 75.0,
+      "total_questions": 6,
+      "questions": [
+        {
+          "id": 9,
+          "question_text": "Seorang mahasiswi mengalami siklus haid...",
+          "options": [
+            { "label": "A", "text": "..." },
+            { "label": "B", "text": "..." },
+            { "label": "C", "text": "..." },
+            { "label": "D", "text": "..." }
+          ]
+        }
+      ],
+      "posttest_gate": { ... }
+    }
+  }
+  ```
+
+### 3.8. Submit Post-Test Terpadu (Hitung N-Gain Total, Tetap Login)
+- **Method & URL**: `POST /api/v1/posttest` *(Auth Required)*
 - **Request Body**:
   ```json
   {
     "answers": {
-      "1": "B",
-      "2": "B"
+      "9": "B",
+      "10": "C"
     }
   }
   ```
@@ -226,15 +322,32 @@ Content-Type: application/json
   ```json
   {
     "success": true,
+    "message": "Post-Test selesai dikerjakan. Skor akhir dan N-Gain telah disimpan.",
     "data": {
-      "pretest_score": 60,
+      "pretest_score": 60.0,
       "posttest_score": 100,
       "n_gain_score": 1.0,
       "effectiveness_category": "Tinggi",
-      "points_earned": 50
+      "correct_answers": 6,
+      "total_questions": 6,
+      "points_earned": 100
     }
   }
   ```
+- *Catatan migrasi*: Endpoint lama `GET/POST /api/v1/modules/{id}/posttest` mengembalikan `410 Gone` (`redirect_endpoint: "/api/v1/posttest"`).
+
+### 3.9. Pengelolaan Bank Soal Evaluasi (Khusus Admin)
+Seluruh endpoint berikut memerlukan token pengguna dengan `role = 'admin'`:
+- **Kelola Soal Pre-Test (Berdasarkan Modul)**:
+  - `GET /api/v1/admin/pretest-questions?module_number=1` -> Daftar soal `pre_test` (opsional difilter per nomor modul).
+  - `POST /api/v1/admin/pretest-questions` -> Tambah soal Pre-Test (`module_target` wajib, `question_text`, `options` atau `option_a..option_d`, `correct_answer`, `explanation`).
+  - `PUT /api/v1/admin/pretest-questions/{id}` -> Perbarui soal Pre-Test.
+  - `DELETE /api/v1/admin/pretest-questions/{id}` -> Hapus soal Pre-Test.
+- **Kelola Soal Post-Test (Terpisah, Umum Tanpa Label Modul)**:
+  - `GET /api/v1/admin/posttest-questions` -> Daftar seluruh soal `post_test` (`module_target = null`).
+  - `POST /api/v1/admin/posttest-questions` -> Tambah soal Post-Test (`question_text`, `options` atau `option_a..option_d`, `correct_answer`, `explanation`).
+  - `PUT /api/v1/admin/posttest-questions/{id}` -> Perbarui soal Post-Test.
+  - `DELETE /api/v1/admin/posttest-questions/{id}` -> Hapus soal Post-Test.
 
 ---
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\KesproFeed;
+use Inertia\Inertia;
 
 class PosterController extends Controller
 {
@@ -10,7 +11,7 @@ class PosterController extends Controller
     {
         $posters = KesproFeed::latest()->get();
 
-        return view('posters.index', compact('posters'));
+        return Inertia::render('Posters/Index', compact('posters'));
     }
 
     public function download($id)

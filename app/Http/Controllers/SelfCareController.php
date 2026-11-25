@@ -8,6 +8,7 @@ use App\Services\MenstrualCycleCalculatorService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class SelfCareController extends Controller
 {
@@ -21,36 +22,40 @@ class SelfCareController extends Controller
         $recentBmi = BmiLog::where('user_id', $user->id)->latest()->take(5)->get();
         $latestBmi = $recentBmi->first();
 
-        // Prediksi siklus haid dan masa subur ilmiah (ACOG, WHO, Wilcox 1995, Ogino-Knaus)
         $prediction = null;
-        $nextPeriodDate = null;
-        $fertileWindowStart = null;
-        $fertileWindowEnd = null;
-        $ovulationDate = null;
-
         if ($isFemale && $latestPeriod) {
             $prediction = $calculator->calculateForUser($user);
-            if ($prediction) {
-                $nextPeriodDate = Carbon::parse($prediction['predictions']['next_period']['start_date']);
-                $ovulationDate = Carbon::parse($prediction['predictions']['ovulation']['date']);
-                $fertileWindowStart = Carbon::parse($prediction['predictions']['fertile_window']['start_date']);
-                $fertileWindowEnd = Carbon::parse($prediction['predictions']['fertile_window']['end_date']);
-            }
         }
 
-        return view('selfcare.index', compact(
-            'user',
-            'isFemale',
-            'recentPeriods',
-            'latestPeriod',
-            'recentBmi',
-            'latestBmi',
-            'prediction',
-            'nextPeriodDate',
-            'fertileWindowStart',
-            'fertileWindowEnd',
-            'ovulationDate'
-        ));
+        return Inertia::render('SelfCare/Index', [
+            'isFemale' => $isFemale,
+            'recentPeriods' => $recentPeriods->map(fn (PeriodLog $p): array => [
+                'id' => $p->id,
+                'start_date' => $p->start_date->format('Y-m-d'),
+                'start_date_label' => $p->start_date->format('d M Y'),
+                'end_date_label' => $p->end_date?->format('d M Y'),
+                'cycle_length' => $p->cycle_length,
+                'period_duration' => $p->period_duration,
+                'flow_level' => $p->flow_level,
+                'flow_color' => $p->flow_color,
+                'volume_category' => $p->volume_category,
+                'pbac_score' => $p->pbac_score,
+                'nrs_pain_score' => $p->nrs_pain_score,
+                'walidd_total_score' => $p->walidd_total_score,
+                'walidd_category' => $p->walidd_category,
+                'notes' => $p->notes,
+            ]),
+            'recentBmi' => $recentBmi->map(fn (BmiLog $b): array => [
+                'id' => $b->id,
+                'weight_kg' => $b->weight_kg,
+                'height_cm' => $b->height_cm,
+                'bmi_value' => $b->bmi_value,
+                'category' => $b->category,
+                'advice' => $b->advice,
+                'created_at_label' => $b->created_at?->format('d M Y'),
+            ]),
+            'prediction' => $prediction,
+        ]);
     }
 
     public function storePeriod(Request $request, MenstrualCycleCalculatorService $calculator)
@@ -216,11 +221,11 @@ class SelfCareController extends Controller
 
     public function bloodGuide()
     {
-        return view('selfcare.blood_guide');
+        return Inertia::render('SelfCare/BloodGuide');
     }
 
     public function hygieneGuide()
     {
-        return view('selfcare.hygiene_guide');
+        return Inertia::render('SelfCare/HygieneGuide');
     }
 }

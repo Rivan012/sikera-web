@@ -4,17 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\EvaluationResponse;
 use App\Models\TestQuestion;
+use App\Services\EvaluationEligibilityService;
 use App\Services\PostTestExcelExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AdminEvaluationController extends Controller
 {
-    /**
-     * Memastikan hanya admin yang dapat mengakses
-     */
     private function authorizeAdmin(): void
     {
         if (! Auth::check() || ! Auth::user()->isAdmin()) {
@@ -22,26 +21,21 @@ class AdminEvaluationController extends Controller
         }
     }
 
-    /**
-     * Daftar Semua Hasil & Lembar Jawaban Evaluasi Mahasiswa
-     */
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $this->authorizeAdmin();
 
-        $typeFilter = $request->query('type', 'all'); // all, post_test, pre_test
-        $moduleFilter = $request->query('module', 'all'); // all, general, 1, 2, 3, 4
-        $searchQuery = $request->query('q');
+        $typeFilter = (string) $request->query('type', 'all');
+        $moduleFilter = (string) $request->query('module', 'all');
+        $searchQuery = trim((string) $request->query('q', ''));
 
         $query = EvaluationResponse::with('user');
 
-        // Filter Tipe Evaluasi
-        if ($typeFilter && $typeFilter !== 'all') {
+        if ($typeFilter !== '' && $typeFilter !== 'all') {
             $query->where('type', $typeFilter);
         }
 
-        // Filter Lingkup Modul
-        if ($moduleFilter && $moduleFilter !== 'all') {
+        if ($moduleFilter !== '' && $moduleFilter !== 'all') {
             if ($moduleFilter === 'general') {
                 $query->whereNull('module_number');
             } else {
@@ -49,9 +43,8 @@ class AdminEvaluationController extends Controller
             }
         }
 
-        // Pencarian Nama / NIM / Inisial Mahasiswa
-        if ($searchQuery) {
-            $query->whereHas('user', function ($q) use ($searchQuery) {
+        if ($searchQuery !== '') {
+            $query->whereHas('user', function ($q) use ($searchQuery): void {
                 $q->where('name', 'like', "%{$searchQuery}%")
                     ->orWhere('nim', 'like', "%{$searchQuery}%")
                     ->orWhere('initials', 'like', "%{$searchQuery}%")
@@ -59,27 +52,37 @@ class AdminEvaluationController extends Controller
             });
         }
 
-        $evaluations = $query->latest('submitted_at')->paginate(15)->withQueryString();
+        $evaluations = $query->latest('submitted_at')->paginate(15)->withQueryString()
+            ->through(fn (EvaluationResponse $eval): array => [
+                'id' => $eval->id,
+                'type' => $eval->type,
+                'module_number' => $eval->module_number,
+                'total_score' => $eval->total_score,
+                'n_gain_score' => $eval->n_gain_score,
+                'submitted_at' => $eval->submitted_at?->format('d M Y, H:i'),
+                'user' => $eval->user ? [
+                    'id' => $eval->user->id,
+                    'name' => $eval->user->name,
+                    'initials' => $eval->user->initials,
+                    'nim' => $eval->user->nim,
+                    'prodi' => $eval->user->prodi,
+                    'fakultas' => $eval->user->fakultas,
+                ] : null,
+            ]);
 
-        // Statistik Ringkas untuk Dashboard Header
         $totalEvaluations = EvaluationResponse::count();
         $totalPosttests = EvaluationResponse::where('type', 'post_test')->count();
         $totalPretests = EvaluationResponse::where('type', 'pre_test')->count();
 
-        $avgPostScore = EvaluationResponse::where('type', 'post_test')->avg('total_score');
-        $avgPostScore = $avgPostScore ? round($avgPostScore, 1) : 0;
-
-        $avgPreScore = EvaluationResponse::where('type', 'pre_test')->avg('total_score');
-        $avgPreScore = $avgPreScore ? round($avgPreScore, 1) : 0;
-
-        $avgNGain = EvaluationResponse::where('type', 'post_test')->whereNotNull('n_gain_score')->avg('n_gain_score');
-        $avgNGain = $avgNGain ? round($avgNGain, 3) : 0;
+        $avgPostScore = round((float) (EvaluationResponse::where('type', 'post_test')->avg('total_score') ?: 0), 1);
+        $avgPreScore = round((float) (EvaluationResponse::where('type', 'pre_test')->avg('total_score') ?: 0), 1);
+        $avgNGain = round((float) (EvaluationResponse::where('type', 'post_test')->whereNotNull('n_gain_score')->avg('n_gain_score') ?: 0), 3);
 
         $highGainCount = EvaluationResponse::where('type', 'post_test')->where('n_gain_score', '>=', 0.7)->count();
         $mediumGainCount = EvaluationResponse::where('type', 'post_test')->whereBetween('n_gain_score', [0.3, 0.699])->count();
         $lowGainCount = EvaluationResponse::where('type', 'post_test')->where('n_gain_score', '<', 0.3)->count();
 
-        return view('admin.evaluations.index', compact(
+        return Inertia::render('Admin/Evaluations/Index', compact(
             'evaluations',
             'typeFilter',
             'moduleFilter',
@@ -96,61 +99,40 @@ class AdminEvaluationController extends Controller
         ));
     }
 
-    /**
-     * Detail Lembar Jawaban dan Analisis Butir Soal Mahasiswa
-     */
-    public function show(int $id): View
+    public function show(int $id, EvaluationEligibilityService $eligibility): Response
     {
         $this->authorizeAdmin();
 
         $evaluation = EvaluationResponse::with('user')->findOrFail($id);
         $user = $evaluation->user;
 
-        // Ambil soal yang relevan
         $rawAnswers = $evaluation->raw_answers ?? [];
         $questionIds = ! empty($rawAnswers) ? array_keys($rawAnswers) : [];
 
         if (! empty($questionIds)) {
             $questions = TestQuestion::whereIn('id', $questionIds)->get()->keyBy('id');
         } elseif ($evaluation->module_number !== null) {
-            $questions = TestQuestion::where('module_target', $evaluation->module_number)->get()->keyBy('id');
+            $questions = TestQuestion::preTest()->where('module_target', $evaluation->module_number)->get()->keyBy('id');
         } else {
-            $questions = TestQuestion::all()->keyBy('id');
+            $questions = TestQuestion::postTest()->get()->keyBy('id');
+            if ($questions->isEmpty()) {
+                $questions = TestQuestion::all()->keyBy('id');
+            }
         }
 
-        // Cari tes pembanding (Pre-Test jika sedang melihat Post-Test, atau sebaliknya)
-        $comparisonTest = null;
-        if ($evaluation->type === 'post_test') {
-            $comparisonTest = EvaluationResponse::where('user_id', $evaluation->user_id)
-                ->where('type', 'pre_test')
-                ->where(function ($q) use ($evaluation) {
-                    if ($evaluation->module_number !== null) {
-                        $q->where('module_number', $evaluation->module_number)
-                            ->orWhereNull('module_number');
-                    } else {
-                        $q->whereNull('module_number');
-                    }
-                })
-                ->latest('submitted_at')
-                ->first();
+        $comparisonScore = null;
+        $comparisonRawAnswers = [];
+        if ($evaluation->type === 'post_test' && $user) {
+            $comparisonScore = $eligibility->calculateAggregatePretestScore($user);
         } elseif ($evaluation->type === 'pre_test') {
             $comparisonTest = EvaluationResponse::where('user_id', $evaluation->user_id)
                 ->where('type', 'post_test')
-                ->where(function ($q) use ($evaluation) {
-                    if ($evaluation->module_number !== null) {
-                        $q->where('module_number', $evaluation->module_number)
-                            ->orWhereNull('module_number');
-                    } else {
-                        $q->whereNull('module_number');
-                    }
-                })
                 ->latest('submitted_at')
                 ->first();
+            $comparisonScore = $comparisonTest?->total_score;
+            $comparisonRawAnswers = $comparisonTest?->raw_answers ?? [];
         }
 
-        $comparisonRawAnswers = $comparisonTest?->raw_answers ?? [];
-
-        // Susun analisis butir soal per pertanyaan
         $questionItems = [];
         $correctCount = 0;
         $totalQuestions = count($questions);
@@ -166,7 +148,6 @@ class AdminEvaluationController extends Controller
             }
 
             $comparisonAns = isset($comparisonRawAnswers[$qId]) ? strtoupper((string) $comparisonRawAnswers[$qId]) : null;
-            $comparisonIsCorrect = ($comparisonAns !== null && $comparisonAns === $correctAns);
 
             $questionItems[] = [
                 'number' => $number++,
@@ -179,23 +160,34 @@ class AdminEvaluationController extends Controller
                 'is_correct' => $isCorrect,
                 'explanation' => $q->explanation,
                 'comparison_answer' => $comparisonAns,
-                'comparison_is_correct' => $comparisonIsCorrect,
             ];
         }
 
-        return view('admin.evaluations.show', compact(
-            'evaluation',
-            'user',
-            'questionItems',
-            'correctCount',
-            'totalQuestions',
-            'comparisonTest'
-        ));
+        return Inertia::render('Admin/Evaluations/Show', [
+            'evaluation' => [
+                'id' => $evaluation->id,
+                'type' => $evaluation->type,
+                'module_number' => $evaluation->module_number,
+                'total_score' => $evaluation->total_score,
+                'n_gain_score' => $evaluation->n_gain_score,
+                'submitted_at' => $evaluation->submitted_at?->format('d M Y, H:i'),
+            ],
+            'student' => $user ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'initials' => $user->initials,
+                'nim' => $user->nim,
+                'email' => $user->email,
+                'prodi' => $user->prodi,
+                'fakultas' => $user->fakultas,
+            ] : null,
+            'questionItems' => $questionItems,
+            'correctCount' => $correctCount,
+            'totalQuestions' => $totalQuestions,
+            'comparisonScore' => $comparisonScore,
+        ]);
     }
 
-    /**
-     * Ekspor Data Post-Test dan Tabulasi Butir Soal ke Excel (.xlsx)
-     */
     public function exportExcel(Request $request, PostTestExcelExportService $exportService): BinaryFileResponse
     {
         $this->authorizeAdmin();

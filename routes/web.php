@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminEvaluationController;
 use App\Http\Controllers\AdminModuleController;
 use App\Http\Controllers\AdminPosterController;
 use App\Http\Controllers\AdminSheetController;
+use App\Http\Controllers\AdminTestQuestionController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\AuthController;
@@ -25,17 +26,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', LandingController::class)->name('home');
 
 // Login Google
-Route::get('/auth/google', [
-    GoogleController::class,
-    'redirect',
-])->name('google.redirect');
-
+Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('google.redirect');
 Route::get('/auth/google/start', [GoogleController::class, 'start'])->name('google.start');
-
-Route::get('/auth/google/callback', [
-    GoogleController::class,
-    'callback',
-])->name('google.callback');
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -48,39 +41,36 @@ Route::middleware('auth')->group(function () {
     Route::get('/profil', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profil', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Pengalihan umum otomatis sesuai role
+    // Pengalihan umum otomatis sesuai role (Pre-Test kini per modul sebelum akses materi)
     Route::get('/dashboard', function () {
         $user = auth()->user();
         if ($user->isMahasiswa()) {
             if (! $user->is_biodata_filled) {
                 return redirect()->route('biodata.show');
             }
-            if (! $user->pretest_completed) {
-                return redirect()->route('pretest.show');
-            }
 
             return redirect()->route('mahasiswa.dashboard');
         } elseif ($user->isDosen()) {
             return redirect()->route('dosen.dashboard');
-        } else {
-            return redirect()->route('admin.dashboard');
         }
+
+        return redirect()->route('admin.dashboard');
     })->name('dashboard');
 
     // Biodata Mahasiswa
     Route::get('/biodata', [AuthController::class, 'showBiodata'])->name('biodata.show');
     Route::post('/biodata', [AuthController::class, 'saveBiodata'])->name('biodata.save');
 
-    // Research Gating (Pre-Test & Post-Test)
+    // Research Evaluation (Pre-Test per Modul & Post-Test Terpadu 3 Hari Setelah Semua Modul Selesai)
     Route::get('/pretest', [EvaluationController::class, 'showPretest'])->name('pretest.show');
     Route::post('/pretest', [EvaluationController::class, 'submitPretest'])->name('pretest.submit');
     Route::get('/posttest', [EvaluationController::class, 'showPosttest'])->name('posttest.show');
     Route::post('/posttest', [EvaluationController::class, 'submitPosttest'])->name('posttest.submit');
 
-    // Mahasiswa Menu Utama (Fitur Edukasi & Pemantauan)
+    // Mahasiswa Menu Utama
     Route::get('/mahasiswa/dashboard', [MahasiswaDashboardController::class, 'index'])->name('mahasiswa.dashboard');
 
-    // I1: Modul Edukasi Flipbook PDF & Video YouTube (Per-Module Pre-Test & Post-Test)
+    // I1: Modul Edukasi Flipbook PDF & Pre-Test per Modul
     Route::get('/modules', [EducationalModuleController::class, 'index'])->name('modules.index');
     Route::get('/modules/{id}', [EducationalModuleController::class, 'show'])->name('modules.show');
     Route::get('/modules/{id}/pretest', [EvaluationController::class, 'showModulePretest'])->name('modules.pretest.show');
@@ -90,12 +80,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/modules/{moduleId}/topic/{topicId}', [EducationalModuleController::class, 'showTopic'])->name('modules.topic');
     Route::get('/modules/{moduleId}/topic/{topicId}/pdf', [EducationalModuleController::class, 'streamTopicPdf'])->name('modules.topic.pdf');
 
-    // I2: Projek Visual Poster (Kaspro / KesproFeed)
+    // I2: Projek Visual Poster Kaspro
     Route::get('/posters', [PosterController::class, 'index'])->name('posters.index');
     Route::post('/posters/{id}/download', [PosterController::class, 'download'])->name('posters.download');
     Route::post('/posters/{id}/share', [PosterController::class, 'share'])->name('posters.share');
 
-    // I3: Kalender Haid, Macam Darah & IMT (Self-Care Tools)
+    // I3: Kalender Haid, Macam Darah & IMT
     Route::get('/selfcare', [SelfCareController::class, 'index'])->name('selfcare.index');
     Route::post('/selfcare/period', [SelfCareController::class, 'storePeriod'])->name('selfcare.period.store');
     Route::post('/selfcare/bmi', [SelfCareController::class, 'storeBmi'])->name('selfcare.bmi.store');
@@ -123,8 +113,7 @@ Route::middleware('auth')->group(function () {
     // 2. Alur Dosen PA
     Route::get('/dosen/dashboard', [DosenDashboardController::class, 'index'])->name('dosen.dashboard');
 
-    // 3. Alur Super Admin / Pengelola (Terpisah Mandiri)
-    // 3.1 Dashboard Grafik & Metrik Utama
+    // 3. Alur Super Admin / Pengelola
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
     // 3.2 Daftar Pengguna Terdaftar (CRUD)
@@ -133,7 +122,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/admin/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
     Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 
-    // 3.3 Kelola & Unggah Modul Edukasi
+    // 3.3 Kelola & Unggah Modul Edukasi PDF Flipbook
     Route::get('/admin/modules/template', [AdminModuleController::class, 'downloadTemplate'])->name('admin.modules.template');
     Route::get('/admin/modules/preview-banner', [AdminModuleController::class, 'previewBannerSvg'])->name('admin.modules.banner.preview');
     Route::post('/admin/modules/import', [AdminModuleController::class, 'importExcel'])->name('admin.modules.import');
@@ -145,15 +134,26 @@ Route::middleware('auth')->group(function () {
     Route::delete('/admin/modules/{id}', [AdminModuleController::class, 'destroy'])->name('admin.modules.destroy');
     Route::delete('/admin/topics/{id}', [AdminModuleController::class, 'destroyTopic'])->name('admin.topics.destroy');
 
-    // 3.4 Lembar Data Google Sheets
+    // 3.4 Kelola Soal Pre-Test (Berdasarkan Modul) & Post-Test (Terpisah)
+    Route::get('/admin/pretest-questions', [AdminTestQuestionController::class, 'indexPretest'])->name('admin.pretest-questions.index');
+    Route::post('/admin/pretest-questions', [AdminTestQuestionController::class, 'storePretest'])->name('admin.pretest-questions.store');
+    Route::put('/admin/pretest-questions/{id}', [AdminTestQuestionController::class, 'updatePretest'])->name('admin.pretest-questions.update');
+    Route::delete('/admin/pretest-questions/{id}', [AdminTestQuestionController::class, 'destroyPretest'])->name('admin.pretest-questions.destroy');
+
+    Route::get('/admin/posttest-questions', [AdminTestQuestionController::class, 'indexPosttest'])->name('admin.posttest-questions.index');
+    Route::post('/admin/posttest-questions', [AdminTestQuestionController::class, 'storePosttest'])->name('admin.posttest-questions.store');
+    Route::put('/admin/posttest-questions/{id}', [AdminTestQuestionController::class, 'updatePosttest'])->name('admin.posttest-questions.update');
+    Route::delete('/admin/posttest-questions/{id}', [AdminTestQuestionController::class, 'destroyPosttest'])->name('admin.posttest-questions.destroy');
+
+    // 3.5 Lembar Data Google Sheets
     Route::get('/admin/sheets', [AdminSheetController::class, 'index'])->name('admin.sheets.index');
 
-    // 3.5 Unggah & Kelola Poster Kaspro
+    // 3.6 Unggah & Kelola Poster Kaspro
     Route::get('/admin/posters', [AdminPosterController::class, 'index'])->name('admin.posters.index');
     Route::post('/admin/posters', [AdminPosterController::class, 'store'])->name('admin.posters.store');
     Route::delete('/admin/posters/{id}', [AdminPosterController::class, 'destroy'])->name('admin.posters.destroy');
 
-    // 3.6 Analisis & Lembar Jawaban Evaluasi (Pre-Test & Post-Test)
+    // 3.7 Analisis & Lembar Jawaban Evaluasi (Pre-Test & Post-Test)
     Route::get('/admin/evaluations/export', [AdminEvaluationController::class, 'exportExcel'])->name('admin.evaluations.export');
     Route::get('/admin/evaluations', [AdminEvaluationController::class, 'index'])->name('admin.evaluations.index');
     Route::get('/admin/evaluations/{id}', [AdminEvaluationController::class, 'show'])->name('admin.evaluations.show');

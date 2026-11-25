@@ -71,7 +71,7 @@ class ModuleTopicPdfService
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$safeFilename.'"',
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, max-age=3600',
+            'Cache-Control' => 'private, no-cache, must-revalidate',
         ];
 
         if ($allowCors) {

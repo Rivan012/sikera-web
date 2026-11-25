@@ -6,6 +6,7 @@ use App\Models\ForumReply;
 use App\Models\ForumThread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class ForumController extends Controller
 {
@@ -13,12 +14,12 @@ class ForumController extends Controller
     {
         $threads = ForumThread::withCount('replies')->latest()->paginate(15);
 
-        return view('forum.index', compact('threads'));
+        return Inertia::render('Forum/Index', compact('threads'));
     }
 
     public function create()
     {
-        return view('forum.create');
+        return Inertia::render('Forum/Create');
     }
 
     public function store(Request $request)
@@ -44,7 +45,7 @@ class ForumController extends Controller
     {
         $thread = ForumThread::with(['replies' => fn ($q) => $q->oldest()])->findOrFail($id);
 
-        return view('forum.show', compact('thread'));
+        return Inertia::render('Forum/Show', compact('thread'));
     }
 
     public function reply(Request $request, $id)

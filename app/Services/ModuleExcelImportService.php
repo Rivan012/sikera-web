@@ -124,7 +124,8 @@ class ModuleExcelImportService
             foreach ($parsed['questions'] as $qData) {
                 $modTarget = (int) $qData['module_target'];
 
-                $existingQ = TestQuestion::where('module_target', $modTarget)
+                $existingQ = TestQuestion::preTest()
+                    ->where('module_target', $modTarget)
                     ->where('question_text', $qData['question_text'])
                     ->first();
 
@@ -139,6 +140,7 @@ class ModuleExcelImportService
                     }
                 } else {
                     TestQuestion::create([
+                        'question_type' => TestQuestion::TYPE_PRETEST,
                         'module_target' => $modTarget,
                         'question_text' => $qData['question_text'],
                         'options' => $qData['options'],
